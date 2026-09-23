@@ -3,6 +3,7 @@ integration boundary speaks FHIR so a real EHR (HL7 FHIR API) can be plugged in
 without touching the agent."""
 
 from datetime import datetime, timedelta
+from functools import wraps
 
 from app.models import Appointment, ExamResult, Patient
 
@@ -16,10 +17,29 @@ APPOINTMENT_STATUS = {
 }
 
 
+def _prune(value):
+    """FHIR JSON forbids null values and empty arrays: absent data is omitted."""
+    if isinstance(value, dict):
+        pruned = {k: _prune(v) for k, v in value.items()}
+        return {k: v for k, v in pruned.items() if v not in (None, [], {})}
+    if isinstance(value, list):
+        return [_prune(v) for v in value]
+    return value
+
+
+def fhir_resource(build):
+    @wraps(build)
+    def wrapper(*args, **kwargs) -> dict:
+        return _prune(build(*args, **kwargs))
+
+    return wrapper
+
+
 def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat(timespec="seconds") if dt else None
 
 
+@fhir_resource
 def patient_resource(p: Patient) -> dict:
     given, *family = p.full_name.split()
     return {
@@ -32,6 +52,7 @@ def patient_resource(p: Patient) -> dict:
     }
 
 
+@fhir_resource
 def appointment_resource(a: Appointment) -> dict:
     start = a.slot.starts_at
     return {
@@ -48,6 +69,7 @@ def appointment_resource(a: Appointment) -> dict:
     }
 
 
+@fhir_resource
 def diagnostic_report_resource(r: ExamResult) -> dict:
     return {
         "resourceType": "DiagnosticReport",

@@ -75,6 +75,12 @@ th{color:var(--muted);font-weight:500}
 .timeline li::before{content:"";position:absolute;left:-5px;top:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .timeline code{font-size:11px;color:var(--accent)}
 .tablewrap{overflow-x:auto}
+.hint{color:var(--muted);font-size:13px;margin:0 0 14px}
+.fcard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.fcard .rt{font:600 11px ui-monospace,Consolas,monospace;color:var(--accent);text-transform:none}
+.fcard .kv{display:grid;grid-template-columns:120px 1fr;gap:2px 10px;font-size:13px;margin-top:6px}
+.fcard .kv span:nth-child(odd){color:var(--muted)}
+details.raw{margin-top:14px}details.raw summary{cursor:pointer;color:var(--accent);font-weight:600}
 </style>
 </head>
 <body>
@@ -106,7 +112,11 @@ th{color:var(--muted);font-weight:500}
       </nav>
       <div class="pane active" id="pane-trace"><div class="empty">Send a message to see the agent plan, call tools and answer.</div></div>
       <div class="pane" id="pane-crm"></div>
-      <div class="pane" id="pane-fhir"><pre id="fhir-out"></pre></div>
+      <div class="pane" id="pane-fhir">
+        <p class="hint">How an EHR or lab system sees this patient, in the <b>HL7 FHIR R4</b> healthcare interoperability standard. The summary is for people; the raw JSON below is what systems exchange.</p>
+        <div id="fhir-summary"></div>
+        <details class="raw"><summary>Raw FHIR JSON</summary><pre id="fhir-out"></pre></details>
+      </div>
     </div>
   </section>
 </main>
@@ -189,11 +199,27 @@ function renderCRM(d) {
 }
 
 async function loadFHIR() {
-  const [p, r] = await Promise.all([
-    api(`/fhir/Patient/${current.id}`), api(`/fhir/DiagnosticReport?patient=${current.id}`)
+  const [p, a, r] = await Promise.all([
+    api(`/fhir/Patient/${current.id}`), api(`/fhir/Appointment?patient=${current.id}`),
+    api(`/fhir/DiagnosticReport?patient=${current.id}`)
   ]);
-  $("#fhir-out").textContent = "GET /fhir/Patient/" + current.id + "\n" + JSON.stringify(p, null, 2) +
-    "\n\nGET /fhir/DiagnosticReport?patient=" + current.id + "\n" + JSON.stringify(r, null, 2);
+  const card = (type, rows) => `<div class="fcard"><span class="rt">${esc(type)}</span><div class="kv">${
+    rows.filter(([, v]) => v).map(([k, v]) => `<span>${esc(k)}</span><span>${v}</span>`).join("")}</div></div>`;
+  const st = s => `<span class="status ${esc(s)}">${esc(s)}</span>`;
+  const name = p.name[0];
+  const html = [card("Patient/" + p.id, [
+    ["Name", esc(name.given.join(" ") + " " + name.family)], ["Birth date", esc(p.birthDate)],
+    ["Phone", esc(p.telecom.find(t => t.system === "phone")?.value)]])];
+  for (const {resource: x} of a.entry || []) html.push(card("Appointment/" + x.id, [
+    ["Service", esc(x.serviceType[0].text)], ["Start", esc(x.start.replace("T", " "))], ["Status", st(x.status)]]));
+  for (const {resource: x} of r.entry || []) html.push(card("DiagnosticReport/" + x.id, [
+    ["Exam", esc(x.code.text)], ["LOINC", esc(x.code.coding[0].code)], ["Status", st(x.status)],
+    ["Conclusion", x.conclusion ? esc(x.conclusion) : '<i>withheld until the lab releases it</i>']]));
+  $("#fhir-summary").innerHTML = html.join("");
+  $("#fhir-out").textContent = [
+    ["GET /fhir/Patient/" + current.id, p], ["GET /fhir/Appointment?patient=" + current.id, a],
+    ["GET /fhir/DiagnosticReport?patient=" + current.id, r]
+  ].map(([t, j]) => t + "\n" + JSON.stringify(j, null, 2)).join("\n\n");
 }
 
 function renderTrace(res) {

@@ -92,7 +92,8 @@ def test_fhir_resources(client, db):
     assert reports["resourceType"] == "Bundle" and reports["total"] == 2
     by_status = {e["resource"]["status"]: e["resource"] for e in reports["entry"]}
     assert by_status["final"]["code"]["coding"][0]["system"] == "http://loinc.org"
-    assert by_status["preliminary"]["conclusion"] is None  # never leak unreleased results
+    assert "conclusion" not in by_status["preliminary"]  # never leak unreleased results
+    assert "null" not in str(reports).lower() and "None" not in str(reports)  # FHIR forbids nulls
 
 
 def test_chat_endpoint_and_crm_view(client, db):
