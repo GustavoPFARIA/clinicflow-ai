@@ -7,7 +7,8 @@
 ![pgvector](https://img.shields.io/badge/RAG-pgvector-336791)
 ![Stripe](https://img.shields.io/badge/payments-Stripe-635bff)
 ![n8n](https://img.shields.io/badge/automation-n8n-ea4b71)
-![Evals](https://img.shields.io/badge/agent%20evals-30%2F30-brightgreen)
+![MCP](https://img.shields.io/badge/MCP-server-000000)
+![Evals](https://img.shields.io/badge/agent%20evals-34%2F34-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **ClinicFlow AI is a WhatsApp AI agent for healthcare clinics.** Patients write in natural language. The agent books, reschedules and cancels appointments, collects payments through Stripe, answers questions from the clinic's knowledge base with cited sources, delivers lab results from the EHR/LIS, and hands off to a human when needed. Every action lands on a CRM timeline, and n8n runs the reminders and follow-ups.
@@ -22,11 +23,12 @@
 
 ## Contents
 
-[Features](#features) · [Tech stack](#tech-stack) · [Prerequisites](#prerequisites) · [Quick start](#quick-start) · [Guided tour](#guided-tour-what-to-try-and-what-happens) · [Using Claude](#using-claude-instead-of-demo-mode) · [Full stack with Docker](#full-stack-with-docker-postgres--pgvector--n8n) · [How the agent works](#how-the-agent-works) · [Configuration](#configuration) · [Project structure](#project-structure) · [Testing and evals](#testing-and-evals) · [Troubleshooting](#troubleshooting) · [Documentation](#documentation)
+[Features](#features) · [Tech stack](#tech-stack) · [Prerequisites](#prerequisites) · [Quick start](#quick-start) · [Guided tour](#guided-tour-what-to-try-and-what-happens) · [Using Claude or OpenAI](#using-claude-or-openai-instead-of-demo-mode) · [MCP server](#use-it-from-claude-desktop-mcp) · [Full stack with Docker](#full-stack-with-docker-postgres--pgvector--n8n) · [How the agent works](#how-the-agent-works) · [Configuration](#configuration) · [Project structure](#project-structure) · [Testing and evals](#testing-and-evals) · [Troubleshooting](#troubleshooting) · [Documentation](#documentation)
 
 ## Features
 
-- **Tool-using LLM agent.** Claude with native tool use and 9 tools: search, list slots, book, reschedule, cancel, pay, results, my appointments, human handoff. It plans multiple steps on its own, such as *find the appointment → cancel it*.
+- **Tool-using LLM agent, provider-agnostic.** Claude (native tool use) or OpenAI (function calling) behind one interface, with 9 tools: search, list slots, book, reschedule, cancel, pay, results, my appointments, human handoff. It plans multiple steps on its own, such as *find the appointment → cancel it*.
+- **MCP server.** The same 9 tools are exposed over the **Model Context Protocol**, so Claude Desktop, Claude Code or any MCP client can use the clinic's scheduling, payments and knowledge base. Like the agent, it is bound to one patient.
 - **Hybrid RAG with citations.** Real sentence embeddings (`bge-small-en-v1.5`, running locally) in **pgvector** plus BM25, fused with Reciprocal Rank Fusion. A relevance gate calibrated from measurements declines off-topic questions.
 - **Stripe payments.** Checkout Sessions with idempotency keys, and **signed webhooks** (HMAC with replay protection) processed **exactly once**.
 - **EHR / LIS integration over FHIR R4.** `Patient`, `Appointment` and `DiagnosticReport` with LOINC codes. When the lab releases a result, the patient is notified on WhatsApp.
@@ -34,7 +36,8 @@
 - **n8n orchestration.** Importable workflows for 24h reminders, payment follow-up and an event router (result released → notify patient, handoff → Slack).
 - **Guardrails outside the model.** Emergencies bypass the LLM (SAMU 192), medical advice is refused, URLs the model invents are stripped, and a step budget fails safe to a human.
 - **Privacy by design (LGPD / HIPAA).** CPF, phone, e-mail and card numbers are redacted **before** reaching the LLM and restored in the reply. Tool authorization is enforced in code, never in prompts.
-- **LLMOps.** A 30-case eval suite gates CI, the prompt is cached, and every turn is traced with latency and token/cache usage.
+- **Tested against prompt injection.** The eval suite attacks the agent with fake admin modes, cross-patient requests, injected payment links and rule-bypass attempts.
+- **LLMOps.** A 34-case eval suite gates CI, the prompt is cached, and every turn is traced with latency and token/cache usage.
 - **Runs with zero API keys.** A deterministic demo mode drives the same agent loop, so the project runs in about a minute after cloning.
 
 ## Tech stack
@@ -43,14 +46,15 @@
 |---|---|
 | Language | Python 3.12 |
 | API | FastAPI, Pydantic, Uvicorn |
-| LLM | Anthropic Claude (tool use, prompt caching); deterministic scripted policy for offline mode |
+| LLM | Anthropic Claude (tool use, prompt caching), OpenAI (function calling); deterministic scripted policy for offline mode |
+| Agent interop | Model Context Protocol (MCP) server |
 | RAG | pgvector, fastembed (`bge-small-en-v1.5`, ONNX), BM25, Reciprocal Rank Fusion |
 | Data | PostgreSQL + pgvector (SQLite for local demo and tests), SQLAlchemy 2.0 |
 | Payments | Stripe Checkout + webhooks |
 | Messaging | WhatsApp Cloud API |
 | Healthcare | FHIR R4, LOINC |
 | Automation | n8n |
-| Quality | pytest (51 tests), agent evals, Ruff |
+| Quality | pytest (55 tests), 34 agent evals incl. prompt injection, Ruff |
 | Delivery | Docker, docker-compose, GitHub Actions (SQLite + Postgres jobs, image build), Dependabot |
 
 ## Prerequisites
@@ -160,7 +164,7 @@ Click **Reset demo** at any time to start over.
 
 > **About demo mode:** without an API key, a deterministic scripted policy plays the LLM's role using the exact same tool-use protocol. It understands English phrasings close to the suggestion chips. For free conversation in any language, use Claude (next section).
 
-## Using Claude instead of demo mode
+## Using Claude or OpenAI instead of demo mode
 
 **1.** Create an API key at https://console.anthropic.com
 
@@ -179,7 +183,15 @@ ANTHROPIC_MODEL=claude-sonnet-5
 EMBEDDING_PROVIDER=fastembed
 ```
 
-**4.** Restart the app. The header badge now shows `live · anthropic`, and the agent understands free-form messages in any language.
+Or, for OpenAI:
+
+```ini
+LLM_PROVIDER=openai
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5.5
+```
+
+**4.** Restart the app. The header badge now shows `live · anthropic` (or `live · openai`), and the agent understands free-form messages in any language.
 
 > API credits are billed separately from a Claude.ai subscription.
 
@@ -190,6 +202,16 @@ stripe listen --forward-to localhost:8000/webhooks/stripe
 ```
 
 Copy the `whsec_...` secret it prints into `STRIPE_WEBHOOK_SECRET`. For WhatsApp setup, see [Integrations → WhatsApp](docs/integrations.md#whatsapp-cloud-api).
+
+## Use it from Claude Desktop (MCP)
+
+The agent's tools are also an MCP server. Run it for a demo patient:
+
+```bash
+CLINICFLOW_MCP_PHONE=+5562991110001 python -m app.mcp_server
+```
+
+→ Any MCP client can now search the clinic knowledge base, list slots, book, pay and read results as that patient. Setup for Claude Desktop and Claude Code: [docs/mcp.md](docs/mcp.md).
 
 ## Full stack with Docker (Postgres + pgvector + n8n)
 
@@ -262,9 +284,11 @@ Everything is optional. A missing key switches that component to its local fallb
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | `mock` | `mock` (demo policy) or `anthropic` (Claude) |
+| `LLM_PROVIDER` | `mock` | `mock` (demo policy), `anthropic` (Claude) or `openai` |
 | `ANTHROPIC_API_KEY` | — | Claude API key |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Claude model |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-5.5` | OpenAI key and model |
+| `CLINICFLOW_MCP_PHONE` | — | Patient the MCP server is bound to |
 | `EMBEDDING_PROVIDER` | `hashing` | `fastembed` (real model) or `hashing` (fast, deterministic) |
 | `DATABASE_URL` | SQLite file | Use `postgresql+psycopg://...` for pgvector |
 | `STRIPE_SECRET_KEY` | — | Stripe test key; unset → local test checkout |
@@ -280,19 +304,20 @@ Full list: [docs/configuration.md](docs/configuration.md)
 ```
 .
 |-- app/
-|   |-- agent/            # Agent loop, 9 tools, LLM providers, prompts, guardrails
+|   |-- agent/            # Agent loop, 9 tools, LLM providers (Claude/OpenAI), prompts, guardrails
 |   |-- rag/              # Embeddings (bge-small / hashing), hybrid retriever
 |   |-- integrations/     # Stripe, WhatsApp Cloud API, n8n domain events
 |   |-- ehr/              # FHIR R4 mapping
 |   |-- api/              # Chat, CRM, FHIR, webhooks, n8n automation endpoints
 |   |-- static/           # Demo UI (WhatsApp simulator, agent trace, CRM) and test checkout
+|   |-- mcp_server.py     # MCP server exposing the agent's tools
 |   |-- privacy.py        # PII redaction
 |   |-- models.py         # Database schema (the CRM)
 |   `-- seed.py           # Synthetic demo data
 |-- data/knowledge/       # Clinic knowledge base (markdown, one topic per ## section)
-|-- evals/                # 30-case agent eval suite and runner
+|-- evals/                # 34-case agent eval suite (incl. prompt injection) and runner
 |-- n8n/workflows/        # Importable n8n workflows
-|-- tests/                # 51 unit and integration tests
+|-- tests/                # 55 unit and integration tests
 |-- docs/                 # Full documentation and architecture decision records
 |-- Dockerfile
 `-- docker-compose.yml
@@ -302,20 +327,21 @@ Full list: [docs/configuration.md](docs/configuration.md)
 
 | Command | What it does |
 |---|---|
-| `pytest -q` | 51 unit and integration tests |
+| `pytest -q` | 55 unit and integration tests |
 | `ruff check .` | Lint |
-| `python -m evals.run_evals` | Runs the 30 agent scenarios and writes `evals/results.md` |
+| `python -m evals.run_evals` | Runs the 34 agent scenarios and writes `evals/results.md` |
 | `EMBEDDING_PROVIDER=fastembed python -m evals.run_evals` | Same scenarios with real embeddings (what CI runs) |
-| `LLM_PROVIDER=anthropic python -m evals.run_evals` | Scores Claude itself |
+| `LLM_PROVIDER=anthropic python -m evals.run_evals` | Scores Claude itself (`openai` for OpenAI) |
 
 CI runs on every push: lint, tests on **SQLite and Postgres + pgvector**, evals with real embeddings (failing below 95%), and the Docker image build.
 
 | Metric | Score |
 |---|---|
-| **Overall pass rate** | **30/30 (100%)** |
-| Tool-trajectory accuracy | 30/30 (100%) |
+| **Overall pass rate** | **34/34 (100%)** |
+| Tool-trajectory accuracy | 34/34 (100%) |
 | RAG grounding (top-1 citation) | 10/10 (100%) |
 | Safety guardrails | 4/4 (100%) |
+| Prompt-injection resistance | 4/4 (100%) |
 | PII never sent to LLM | 1/1 (100%) |
 
 **Read this before the 100%.** In CI the agent runs on the scripted policy, so these scores validate the **system**: tool contracts, multi-step flows, retrieval, guardrails and privacy. They do not measure Claude's reasoning; run the suite with `LLM_PROVIDER=anthropic` for that. The suite also caught two real bugs during development: a CPF in the query skewed retrieval, and an off-topic question was "grounded" through one shared word. Details: [docs/evaluation.md](docs/evaluation.md).
@@ -341,6 +367,7 @@ More: [docs/troubleshooting.md](docs/troubleshooting.md)
 | [Getting started](docs/getting-started.md) | Setup, demo patients, running tests against Postgres |
 | [Architecture](docs/architecture.md) | Components, request lifecycle, data model |
 | [Agent](docs/agent.md) | Loop, tools, LLM providers, prompt caching, guardrails |
+| [MCP server](docs/mcp.md) | Use the tools from Claude Desktop, Claude Code or any MCP client |
 | [RAG](docs/rag.md) | Chunking, embeddings, hybrid ranking, relevance gate |
 | [Integrations](docs/integrations.md) | Stripe, WhatsApp, EHR/LIS over FHIR, CRM |
 | [n8n workflows](docs/n8n.md) | Workflows, domain events, authentication |

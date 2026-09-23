@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-09-23
+
+### Added
+- MCP server exposing the agent's 9 tools to any Model Context Protocol client (Claude Desktop, Claude Code), bound to one patient.
+- OpenAI provider (function calling) behind the same `LLM` interface, with a protocol translation test.
+- Four prompt-injection eval cases and a cross-patient isolation check in the eval runner.
+- Human-readable FHIR view in the demo UI.
+
+### Fixed
+- FHIR resources no longer contain `null` elements, which the FHIR JSON spec forbids.
+
 ## [1.1.0] - 2026-09-23
 
 ### Added

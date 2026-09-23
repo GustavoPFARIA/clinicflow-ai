@@ -24,7 +24,9 @@ flowchart TB
         LED[(Idempotency ledger)]
     end
     ST[Stripe]
-    LLM[Claude]
+    MCPC[MCP clients<br/>Claude Desktop, IDEs]
+    MCPS[MCP server]
+    LLM[Claude / OpenAI]
     N8N[n8n]
 
     WA --> WH --> AG
@@ -38,6 +40,7 @@ flowchart TB
     API -->|domain events| N8N
     N8N -->|scheduled jobs| AU --> CRM
     FH --> CRM
+    MCPC --> MCPS --> TL
 ```
 
 ## Components
@@ -49,6 +52,7 @@ flowchart TB
 | `app/integrations/` | Stripe (`payments.py`), WhatsApp (`whatsapp.py`), n8n events (`events.py`) |
 | `app/ehr/` | FHIR R4 mapping of internal models |
 | `app/api/` | HTTP layer: chat/CRM/FHIR/LIS routes, provider webhooks, n8n automation endpoints |
+| `app/mcp_server.py` | MCP server exposing the agent's tools to external AI clients |
 | `app/privacy.py` | PII detection, redaction and restoration |
 | `app/crm.py` | Timeline events, patient lookup by phone |
 | `app/models.py` | SQLAlchemy models (the CRM schema) |

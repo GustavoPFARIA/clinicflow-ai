@@ -15,9 +15,11 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
 
     # LLM
-    llm_provider: str = "mock"  # "mock" | "anthropic"
+    llm_provider: str = "mock"  # "mock" | "anthropic" | "openai"
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5"
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-5.5"
     agent_max_steps: int = 6
 
     # RAG

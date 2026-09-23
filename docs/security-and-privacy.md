@@ -6,7 +6,8 @@
 
 | Threat | Mitigation | Where |
 |---|---|---|
-| Model reads or changes another patient's data (prompt injection, confusion) | Tools are bound to the sender's `patient_id`; the model never chooses the patient | `app/agent/tools.py` |
+| Model reads or changes another patient's data (prompt injection, confusion) | Tools are bound to the sender's `patient_id`; the model never chooses the patient. Covered by 4 prompt-injection eval cases | `app/agent/tools.py`, `evals/dataset.json` |
+| MCP client acting for another patient | The MCP server is bound to one patient at launch (`CLINICFLOW_MCP_PHONE`) | `app/mcp_server.py` |
 | Hallucinated or injected payment links | Output URLs must come from a tool result in the same turn | `guardrails.enforce_link_allowlist` |
 | Personal identifiers sent to the LLM provider | Redaction before every call, restoration after | `app/privacy.py` |
 | Forged or replayed payment events | HMAC-SHA256 signature, constant-time compare, 300 s tolerance | `payments.verify_signature` |

@@ -6,7 +6,7 @@
 |---|---|
 | Local demo | Python 3.12+ |
 | Full stack | Docker with Compose v2 |
-| Live providers (optional) | Anthropic API key, Stripe test key, WhatsApp Cloud API app |
+| Live providers (optional) | Anthropic or OpenAI API key, Stripe test key, WhatsApp Cloud API app |
 
 ## 1. Run locally (demo mode)
 
@@ -60,9 +60,9 @@ docker compose exec n8n n8n import:workflow --separate --input=/workflows
 ## 3. Tests, lint and evals
 
 ```bash
-pytest -q                                   # 51 tests, SQLite
+pytest -q                                   # 55 tests, SQLite
 ruff check .                                # lint
-python -m evals.run_evals                   # 30 agent scenarios, writes evals/results.md
+python -m evals.run_evals                   # 34 agent scenarios, writes evals/results.md
 EMBEDDING_PROVIDER=fastembed python -m evals.run_evals   # same, with real embeddings
 ```
 

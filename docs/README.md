@@ -5,6 +5,7 @@
 | [Getting started](getting-started.md) | Run locally in about a minute, run with Docker, run the tests and evals |
 | [Architecture](architecture.md) | Components, request lifecycle, data model, design principles |
 | [Agent](agent.md) | Agent loop, tools, LLM providers, prompts, guardrails |
+| [MCP server](mcp.md) | Expose the tools to Claude Desktop, Claude Code or any MCP client |
 | [RAG](rag.md) | Chunking, embeddings, hybrid retrieval, relevance gate, how to add knowledge |
 | [Integrations](integrations.md) | Stripe, WhatsApp Cloud API, EHR/LIS (FHIR), CRM timeline |
 | [n8n workflows](n8n.md) | The three workflows, domain events, import and activation |

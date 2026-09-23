@@ -47,7 +47,10 @@ Defined in [`tools.py`](../app/agent/tools.py). Every tool receives a `ToolConte
 | `LLM_PROVIDER` | Class | Use |
 |---|---|---|
 | `anthropic` | `AnthropicLLM` | Claude with native tool use and prompt caching |
+| `openai` | `OpenAILLM` | OpenAI Chat Completions with function calling |
 | `mock` (default) | `ScriptedLLM` | Deterministic policy for demo, tests and CI |
+
+The agent keeps **one internal message format** (Anthropic content blocks). `OpenAILLM` translates it to OpenAI messages (`tool_calls`, `role: tool`) and back, so tools, guardrails, redaction, evals and traces behave identically across providers. A test drives the full loop through the OpenAI adapter ([`tests/test_llm_provider.py`](../tests/test_llm_provider.py)).
 
 `ScriptedLLM` is intentionally **not** a toy stub. It emits the same `tool_use` / `tool_result` protocol as Claude, including multi-step plans (for example `get_my_appointments` → `cancel_appointment`), so the agent loop, tools, guardrails and evals are exercised exactly as in production. It does not reason: it maps English phrasings to intents. See [ADR-0001](adr/0001-scripted-policy-for-offline-mode.md).
 

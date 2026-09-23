@@ -1,7 +1,8 @@
 """LLM providers behind one interface, using the Anthropic Messages format
 (content blocks with `text`, `tool_use` and `tool_result`).
 
-- `AnthropicLLM` calls Claude with native tool use.
+- `AnthropicLLM` calls Claude with native tool use and prompt caching.
+- `OpenAILLM` calls OpenAI Chat Completions with function calling.
 - `ScriptedLLM` is a deterministic policy that speaks the exact same protocol.
   It lets the full agent loop (tool calls, multi-step plans, tool errors) run
   offline in the demo, in CI and in evals, without an API key.
@@ -63,6 +64,72 @@ class AnthropicLLM:
                 "output_tokens": resp.usage.output_tokens,
                 "cache_read_input_tokens": resp.usage.cache_read_input_tokens or 0,
                 "cache_creation_input_tokens": resp.usage.cache_creation_input_tokens or 0,
+            },
+        )
+
+
+class OpenAILLM:
+    """OpenAI Chat Completions adapter. The agent keeps one internal message
+    format (Anthropic blocks); this class translates it both ways, so tools,
+    guardrails, evals and traces are provider-agnostic. OpenAI caches long
+    prompt prefixes automatically, and cache hits are reported in the usage."""
+
+    def __init__(self, api_key: str, model: str):
+        import openai
+
+        self.client = openai.OpenAI(api_key=api_key)
+        self.model = model
+        self.name = model
+
+    @staticmethod
+    def to_openai(system: list[str], messages: list[dict], tools: list[dict]) -> tuple[list[dict], list[dict]]:
+        out: list[dict] = [{"role": "system", "content": "\n\n".join(system)}]
+        for m in messages:
+            if isinstance(m["content"], str):
+                out.append({"role": m["role"], "content": m["content"]})
+            elif m["role"] == "assistant":
+                text = "".join(b["text"] for b in m["content"] if b["type"] == "text") or None
+                calls = [
+                    {
+                        "id": b["id"],
+                        "type": "function",
+                        "function": {"name": b["name"], "arguments": json.dumps(b["input"])},
+                    }
+                    for b in m["content"]
+                    if b["type"] == "tool_use"
+                ]
+                out.append({"role": "assistant", "content": text, **({"tool_calls": calls} if calls else {})})
+            else:
+                out += [
+                    {"role": "tool", "tool_call_id": b["tool_use_id"], "content": b["content"]}
+                    for b in m["content"]
+                    if b["type"] == "tool_result"
+                ]
+        fns = [
+            {
+                "type": "function",
+                "function": {"name": t["name"], "description": t["description"], "parameters": t["input_schema"]},
+            }
+            for t in tools
+        ]
+        return out, fns
+
+    def complete(self, system: list[str], messages: list[dict], tools: list[dict]) -> LLMResponse:
+        oa_messages, oa_tools = self.to_openai(system, messages, tools)
+        resp = self.client.chat.completions.create(model=self.model, messages=oa_messages, tools=oa_tools)
+        msg = resp.choices[0].message
+        content: list[dict] = [{"type": "text", "text": msg.content}] if msg.content else []
+        content += [
+            {"type": "tool_use", "id": c.id, "name": c.function.name, "input": json.loads(c.function.arguments or "{}")}
+            for c in msg.tool_calls or []
+        ]
+        details = resp.usage.prompt_tokens_details
+        return LLMResponse(
+            content=content,
+            usage={
+                "input_tokens": resp.usage.prompt_tokens,
+                "output_tokens": resp.usage.completion_tokens,
+                "cache_read_input_tokens": (details.cached_tokens or 0) if details else 0,
             },
         )
 
@@ -378,4 +445,8 @@ def get_llm() -> LLM:
         if not s.anthropic_api_key:
             raise RuntimeError("LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY")
         return AnthropicLLM(s.anthropic_api_key, s.anthropic_model)
+    if s.llm_provider == "openai":
+        if not s.openai_api_key:
+            raise RuntimeError("LLM_PROVIDER=openai requires OPENAI_API_KEY")
+        return OpenAILLM(s.openai_api_key, s.openai_model)
     return ScriptedLLM()

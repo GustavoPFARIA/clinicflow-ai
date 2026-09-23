@@ -13,9 +13,11 @@ Settings are read from environment variables or a `.env` file ([`app/config.py`]
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `mock` | `mock` (deterministic scripted policy) or `anthropic` |
+| `LLM_PROVIDER` | `mock` | `mock` (deterministic scripted policy), `anthropic` or `openai` |
 | `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Any Claude model with tool use |
+| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai` |
+| `OPENAI_MODEL` | `gpt-5.5` | Any OpenAI model with function calling |
 | `AGENT_MAX_STEPS` | `6` | LLM calls per turn before escalating to a human |
 
 ## RAG
@@ -56,6 +58,12 @@ Settings are read from environment variables or a `.env` file ([`app/config.py`]
 | `CLINICFLOW_API_URL` | Base URL the workflows call (`http://api:8000`) |
 | `CLINICFLOW_AUTOMATION_TOKEN` | Mirrors `AUTOMATION_TOKEN` |
 | `SLACK_WEBHOOK_URL` | Incoming webhook for handoff alerts (optional) |
+
+## MCP server
+
+| Variable | Description |
+|---|---|
+| `CLINICFLOW_MCP_PHONE` | Phone number of the patient the MCP server acts for (required) |
 
 ## Tests
 
