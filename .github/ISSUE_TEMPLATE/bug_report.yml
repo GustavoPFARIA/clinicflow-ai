@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Never include real patient data. Use the synthetic demo patients."
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the message you sent and the agent reply, if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Reset demo
+        2. As Bruno, send "..."
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Demo (LLM_PROVIDER=mock)
+        - Claude (LLM_PROVIDER=anthropic)
+    validations:
+      required: true
+  - type: textarea
+    id: trace
+    attributes:
+      label: Agent trace or logs
+      description: Paste the Agent trace tab content or the relevant log lines.
+      render: json
