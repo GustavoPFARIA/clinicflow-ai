@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClinicFlow AI</title>
+<style>
+:root{
+  --bg:#f3f5f7;--panel:#fff;--ink:#101828;--muted:#667085;--line:#e4e7ec;
+  --accent:#0f766e;--accent-soft:#ccfbf1;--chat:#efeae2;--in:#fff;--out:#d9fdd3;
+  --warn:#b54708;--warn-soft:#fef0c7;--err:#b42318;--err-soft:#fee4e2;--ok:#067647;--ok-soft:#dcfae6;
+  --code:#f2f4f7;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0b0f14;--panel:#121820;--ink:#e6edf3;--muted:#8b98a5;--line:#243040;
+  --accent:#2dd4bf;--accent-soft:#0f3b37;--chat:#0b141a;--in:#1f2c34;--out:#005c4b;
+  --warn:#fdb022;--warn-soft:#3b2a0a;--err:#f97066;--err-soft:#3d1512;--ok:#47cd89;--ok-soft:#0d3322;--code:#1a222c;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font-size:17px;margin:0}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-weight:600}
+header .spacer{flex:1}
+select,button{font:inherit;color:inherit}
+select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.btn{padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+main{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:16px;padding:16px;max-width:1400px;margin:0 auto}
+@media (max-width:860px){main{grid-template-columns:1fr;padding:12px 16px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.phone{display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:520px}
+.phone-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--accent);color:#fff}
+.avatar{width:34px;height:34px;border-radius:50%;background:#fff3;display:grid;place-items:center;font-weight:700}
+.phone-head small{opacity:.85;display:block;font-size:12px}
+#chat{flex:1;overflow-y:auto;background:var(--chat);padding:14px;display:flex;flex-direction:column;gap:6px}
+.msg{max-width:85%;padding:7px 10px;border-radius:10px;white-space:pre-wrap;word-wrap:break-word;box-shadow:0 1px 1px #0000001a}
+.msg.user{align-self:flex-end;background:var(--out)}
+.msg.assistant,.msg.push{align-self:flex-start;background:var(--in)}
+.msg.push{border-left:3px solid var(--accent)}
+.msg .tag{display:block;font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.msg a{color:var(--accent);word-break:break-all}
+.typing{align-self:flex-start;color:var(--muted);font-style:italic;font-size:12px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;border-top:1px solid var(--line);background:var(--panel)}
+.chip{white-space:nowrap;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:12px}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+form.composer{display:flex;gap:8px;padding:10px;background:var(--panel);border-top:1px solid var(--line)}
+form.composer input{flex:1;padding:10px 12px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;min-width:0}
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.tabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:12px 16px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.active{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.pane{padding:16px;display:none;max-height:calc(100vh - 170px);overflow-y:auto}
+.pane.active{display:block}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.pill{font-size:12px;padding:2px 8px;border-radius:6px;background:var(--code);color:var(--muted)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.step{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.step-head{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--code);font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.step-head .ok{color:var(--ok)}.step-head .bad{color:var(--err)}
+pre{margin:0;padding:10px 12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:32px 8px}
+h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:18px 0 8px}
+h3:first-child{margin-top:0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500}
+.status{font-size:11px;padding:1px 7px;border-radius:99px;font-weight:600;background:var(--code);color:var(--muted)}
+.status.paid,.status.confirmed,.status.final{background:var(--ok-soft);color:var(--ok)}
+.status.pending,.status.scheduled,.status.preliminary{background:var(--warn-soft);color:var(--warn)}
+.status.cancelled{background:var(--err-soft);color:var(--err)}
+.timeline{list-style:none;margin:0;padding:0}
+.timeline li{padding:7px 0 7px 14px;border-left:2px solid var(--line);position:relative;font-size:13px}
+.timeline li::before{content:"";position:absolute;left:-5px;top:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.timeline code{font-size:11px;color:var(--accent)}
+.tablewrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>ClinicFlow AI</h1><span class="badge" id="mode">…</span>
+  <span class="spacer"></span>
+  <label for="patient" class="pill">Patient</label>
+  <select id="patient" aria-label="Patient"></select>
+  <button class="btn" id="reset" title="Re-seed the synthetic demo data">Reset demo</button>
+  <a class="btn" href="/docs" target="_blank" rel="noopener">API docs</a>
+</header>
+<main>
+  <section class="card phone" aria-label="WhatsApp simulator">
+    <div class="phone-head"><div class="avatar">C</div><div><b>ClinicFlow Clinic</b><small>AI assistant · WhatsApp</small></div></div>
+    <div id="chat" aria-live="polite"></div>
+    <div class="chips" id="chips"></div>
+    <form class="composer" id="composer">
+      <input id="input" autocomplete="off" placeholder="Type a message" aria-label="Message">
+      <button class="btn primary">Send</button>
+    </form>
+  </section>
+
+  <section class="side">
+    <div class="card">
+      <nav class="tabs" role="tablist">
+        <button class="active" data-tab="trace">Agent trace</button>
+        <button data-tab="crm">CRM · 360° view</button>
+        <button data-tab="fhir">FHIR</button>
+      </nav>
+      <div class="pane active" id="pane-trace"><div class="empty">Send a message to see the agent plan, call tools and answer.</div></div>
+      <div class="pane" id="pane-crm"></div>
+      <div class="pane" id="pane-fhir"><pre id="fhir-out"></pre></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const linkify = s => esc(s).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+const SUGGESTIONS = [
+  "Hi", "Book a cardiology appointment", "slot 2", "Pay for my appointment",
+  "Are my exam results ready?", "Do I need to fast before a lipid panel?", "Do you accept Unimed?",
+  "Reschedule my appointment", "Cancel my appointment", "Should I take ibuprofen?",
+  "I have chest pain", "I want to talk to a human", "What's the capital of France?"
+];
+let patients = [], current = null, poll = null, lastSig = "";
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+async function loadPatients() {
+  patients = await api("/api/patients");
+  const sel = $("#patient");
+  sel.innerHTML = patients.map(p => `<option value="${p.id}">${esc(p.name)} · ${esc(p.phone)}</option>`).join("");
+  let saved = null; try { saved = localStorage.getItem("cf.patient"); } catch {}
+  if (saved && patients.some(p => String(p.id) === saved)) sel.value = saved;
+  selectPatient(+sel.value);
+}
+
+function selectPatient(id) {
+  current = patients.find(p => p.id === id);
+  try { localStorage.setItem("cf.patient", id); } catch {}
+  lastSig = "";
+  $("#pane-trace").innerHTML = '<div class="empty">Send a message to see the agent plan, call tools and answer.</div>';
+  refresh();
+  clearInterval(poll); poll = setInterval(refresh, 3000);
+}
+
+async function refresh() {
+  if (!current) return;
+  const data = await api(`/api/patients/${current.id}/crm`);
+  const sig = JSON.stringify([data.conversation.length, data.outbox.length, data.timeline[0]?.at, data.appointments, data.exams]);
+  if (sig === lastSig) return;
+  lastSig = sig;
+  renderChat(data); renderCRM(data); loadFHIR();
+}
+
+function renderChat(data) {
+  const items = [
+    ...data.conversation.map((m, i) => ({...m, k: 0, i})),
+    ...data.outbox.map((m, i) => ({role: "push", content: m.body, at: m.at, k: 1, i})),
+  ].sort((a, b) => a.at.localeCompare(b.at) || a.k - b.k || a.i - b.i);
+  const chat = $("#chat");
+  chat.innerHTML = items.length ? items.map(m =>
+    `<div class="msg ${m.role}">${m.role === "push" ? '<span class="tag">Automated message</span>' : ""}${linkify(m.content)}</div>`
+  ).join("") : '<div class="empty">No messages yet. Try a suggestion below.</div>';
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function renderCRM(d) {
+  const st = s => `<span class="status ${esc(s)}">${esc(s ?? "none")}</span>`;
+  $("#pane-crm").innerHTML = `
+    <h3>Patient</h3>
+    <div class="meta"><b>${esc(d.patient.name)}</b><span class="pill">${esc(d.patient.phone)}</span>
+      ${d.patient.tags.map(t => `<span class="pill warn">${esc(t)}</span>`).join("")}</div>
+    <h3>Appointments</h3>
+    ${d.appointments.length ? `<div class="tablewrap"><table><tr><th>#</th><th>Specialty</th><th>When</th><th>Status</th><th>Payment</th></tr>
+      ${d.appointments.map(a => `<tr><td>${a.id}</td><td>${esc(a.specialty)}<br><small>${esc(a.doctor)}</small></td><td>${esc(a.when)}</td>
+      <td>${st(a.status)}</td><td>${a.payment ? st(a.payment) : "-"}${a.checkout_url && a.payment === "pending" ? `<br><a href="${esc(a.checkout_url)}" target="_blank" rel="noopener">checkout</a>` : ""}</td></tr>`).join("")}
+    </table></div>` : '<p class="pill">No appointments</p>'}
+    <h3>Lab results (LIS)</h3>
+    ${d.exams.length ? `<div class="tablewrap"><table><tr><th>Exam</th><th>Status</th><th>Delivered</th><th></th></tr>
+      ${d.exams.map(e => `<tr><td>${esc(e.name)}</td><td>${st(e.status)}</td><td>${e.delivered ? "yes" : "no"}</td>
+      <td>${e.status !== "final" ? `<button class="btn" data-release="${e.id}">Release result</button>` : ""}</td></tr>`).join("")}
+    </table></div>` : '<p class="pill">No exams on file</p>'}
+    <h3>Timeline</h3>
+    <ul class="timeline">${d.timeline.map(e => `<li><code>${esc(e.kind)}</code><br>${esc(e.summary)}</li>`).join("") || "<li>No events yet</li>"}</ul>`;
+}
+
+async function loadFHIR() {
+  const [p, r] = await Promise.all([
+    api(`/fhir/Patient/${current.id}`), api(`/fhir/DiagnosticReport?patient=${current.id}`)
+  ]);
+  $("#fhir-out").textContent = "GET /fhir/Patient/" + current.id + "\n" + JSON.stringify(p, null, 2) +
+    "\n\nGET /fhir/DiagnosticReport?patient=" + current.id + "\n" + JSON.stringify(r, null, 2);
+}
+
+function renderTrace(res) {
+  const steps = res.trace.map((t, i) => `
+    <div class="step"><div class="step-head"><span>${i + 1}. ${esc(t.tool)}(${esc(JSON.stringify(t.args))})</span>
+    <span class="${t.is_error ? "bad" : "ok"}">${t.is_error ? "error" : "ok"}</span></div>
+    <pre>${esc(JSON.stringify(t.result, null, 2))}</pre></div>`).join("");
+  $("#pane-trace").innerHTML = `
+    <div class="meta"><span class="pill">model: ${esc(res.model)}</span><span class="pill">${res.latency_ms} ms</span>
+    <span class="pill">${res.trace.length} tool call(s)</span>
+    ${res.guardrail ? `<span class="pill warn">guardrail: ${esc(res.guardrail)}</span>` : ""}</div>
+    ${steps || '<div class="empty">Answered without tools.</div>'}`;
+}
+
+async function send(text) {
+  if (!text.trim() || !current) return;
+  const chat = $("#chat");
+  chat.insertAdjacentHTML("beforeend", `<div class="msg user">${esc(text)}</div><div class="typing" id="typing">typing…</div>`);
+  chat.scrollTop = chat.scrollHeight;
+  try {
+    const res = await api("/api/chat", {method: "POST", body: JSON.stringify({phone: current.phone, message: text})});
+    renderTrace(res);
+  } catch (e) {
+    $("#pane-trace").innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
+  }
+  lastSig = ""; await refresh();
+}
+
+$("#composer").addEventListener("submit", e => { e.preventDefault(); const v = $("#input").value; $("#input").value = ""; send(v); });
+$("#chips").innerHTML = SUGGESTIONS.map(s => `<button class="chip" type="button">${esc(s)}</button>`).join("");
+$("#chips").addEventListener("click", e => e.target.matches(".chip") && send(e.target.textContent));
+$("#patient").addEventListener("change", e => selectPatient(+e.target.value));
+$("#reset").addEventListener("click", async () => { await api("/api/demo/reset", {method: "POST"}); await loadPatients(); });
+$("#pane-crm").addEventListener("click", async e => {
+  const id = e.target.dataset.release; if (!id) return;
+  await api(`/api/lis/results/${id}/release`, {method: "POST"}); lastSig = ""; refresh();
+});
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button, .pane").forEach(x => x.classList.remove("active"));
+  b.classList.add("active"); $("#pane-" + b.dataset.tab).classList.add("active");
+}));
+api("/health").then(h => $("#mode").textContent = h.demo_mode ? "demo mode · offline" : "live · " + h.llm);
+loadPatients();
+</script>
+</body>
+</html>

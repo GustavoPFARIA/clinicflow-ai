@@ -1,0 +1,230 @@
+{
+  "name": "ClinicFlow - Event router",
+  "nodes": [
+    {
+      "id": "c491de21-9235-464a-969a-d771c20374ba",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -220
+      ],
+      "parameters": {
+        "content": "## Event router\nThe API emits domain events (exam.released, handoff.requested, payment.succeeded). n8n routes each one: notify the patient, alert reception, log revenue. If n8n is down the API falls back to handling exam notifications inline.",
+        "width": 520,
+        "height": 160
+      }
+    },
+    {
+      "id": "76fc8ee0-59e9-46a9-9257-44722e5effde",
+      "name": "Clinic events",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8fe9d62c-e426-48dc-9e1c-0405aff4cbf6",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "clinicflow-events",
+        "options": {}
+      }
+    },
+    {
+      "id": "4cbd71ef-1bed-4933-ad3d-8015e62c5e08",
+      "name": "Route by event type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "42a69645-777b-49e7-b5b3-b038e6dbd56c",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "exam.released",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "exam.released"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "8653088a-fabd-46f0-aa5a-0d9f4a3cd07f",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "handoff.requested",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "handoff.requested"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "26bb5238-6158-4830-b7b5-c0f4490c2e90",
+                    "leftValue": "={{ $json.body.type }}",
+                    "rightValue": "payment.succeeded",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "payment.succeeded"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "585a62fc-ef34-401b-8d55-31fd09630bab",
+      "name": "Notify patient: result ready",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLINICFLOW_API_URL }}/automations/exam-results/{{ $json.body.data.result_id }}/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Token",
+              "value": "={{ $env.CLINICFLOW_AUTOMATION_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "818d8475-5a54-471c-b771-f88b8f955bd9",
+      "name": "Alert reception on Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        20
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: ':rotating_light: Patient #' + $json.body.data.patient_id + ' needs a human: ' + $json.body.data.reason }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "555f0e4d-21c1-48df-a88c-06bbe556c2e8",
+      "name": "Log revenue (Google Sheets)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        480,
+        160
+      ],
+      "parameters": {},
+      "notes": "Swap for a Google Sheets / HubSpot node to log revenue."
+    }
+  ],
+  "connections": {
+    "Clinic events": {
+      "main": [
+        [
+          {
+            "node": "Route by event type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by event type": {
+      "main": [
+        [
+          {
+            "node": "Notify patient: result ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert reception on Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log revenue (Google Sheets)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": [
+    {
+      "name": "clinicflow"
+    }
+  ]
+}

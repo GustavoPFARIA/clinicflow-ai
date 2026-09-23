@@ -1,0 +1,153 @@
+{
+  "name": "ClinicFlow - 24h appointment reminders",
+  "nodes": [
+    {
+      "id": "46c3a266-08c7-4faf-a0b4-b1b1c883214e",
+      "name": "About",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -220
+      ],
+      "parameters": {
+        "content": "## 24h reminders\nHourly: fetch appointments starting in the next 24h that were not reminded yet, then send one WhatsApp reminder each. The send endpoint is idempotent, so retries are safe.",
+        "width": 520,
+        "height": 160
+      }
+    },
+    {
+      "id": "89258edf-1ae9-4aa7-97c4-2d110c2ce31c",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9deb72ef-abde-474d-98b7-45a4a9b324bb",
+      "name": "Get due reminders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.CLINICFLOW_API_URL }}/automations/reminders/due?within_hours=24",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Token",
+              "value": "={{ $env.CLINICFLOW_AUTOMATION_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "c24fda76-21ef-48d1-914c-a65e0d9a47d0",
+      "name": "One item per appointment",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "appointments",
+        "options": {}
+      }
+    },
+    {
+      "id": "b28e94c7-e662-411d-8ef2-9eaa870c8d19",
+      "name": "Send WhatsApp reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLINICFLOW_API_URL }}/automations/reminders/{{ $json.appointment_id }}/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Automation-Token",
+              "value": "={{ $env.CLINICFLOW_AUTOMATION_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Get due reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get due reminders": {
+      "main": [
+        [
+          {
+            "node": "One item per appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per appointment": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": [
+    {
+      "name": "clinicflow"
+    }
+  ]
+}

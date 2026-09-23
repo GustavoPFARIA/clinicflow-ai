@@ -1,0 +1,49 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: clinicflow
+      POSTGRES_PASSWORD: clinicflow
+      POSTGRES_DB: clinicflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinicflow"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://clinicflow:clinicflow@db:5432/clinicflow
+      N8N_EVENT_WEBHOOK_URL: http://n8n:5678/webhook/clinicflow-events
+      AUTOMATION_TOKEN: ${AUTOMATION_TOKEN:-dev-automation-token}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      CLINICFLOW_API_URL: http://api:8000
+      CLINICFLOW_AUTOMATION_TOKEN: ${AUTOMATION_TOKEN:-dev-automation-token}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_SECURE_COOKIE: "false"
+      GENERIC_TIMEZONE: America/Sao_Paulo
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8ndata:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  n8ndata:
