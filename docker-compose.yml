@@ -20,6 +20,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://clinicflow:clinicflow@db:5432/clinicflow
       N8N_EVENT_WEBHOOK_URL: http://n8n:5678/webhook/clinicflow-events
+      EMBEDDING_PROVIDER: fastembed
       AUTOMATION_TOKEN: ${AUTOMATION_TOKEN:-dev-automation-token}
     ports:
       - "8000:8000"

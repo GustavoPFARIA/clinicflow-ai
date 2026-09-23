@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-5"
     agent_max_steps: int = 6
 
+    # RAG
+    embedding_provider: str = "hashing"  # "hashing" | "fastembed"
+
     # Stripe
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str = "whsec_demo_secret"

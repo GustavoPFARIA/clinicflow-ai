@@ -8,3 +8,4 @@ pgvector==0.4.1
 anthropic>=0.50.0
 stripe==12.1.0
 httpx==0.28.1
+fastembed==0.8.1

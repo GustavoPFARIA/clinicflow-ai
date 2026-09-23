@@ -1,6 +1,8 @@
 import json
 from dataclasses import asdict
 from datetime import datetime
+from html import escape
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -153,29 +155,48 @@ def release_result(result_id: int, db: Session = Depends(get_session)):
 # --- demo checkout (stands in for Stripe-hosted checkout without keys) ---------
 
 
+CHECKOUT_TEMPLATE = (Path(__file__).resolve().parent.parent / "static" / "checkout.html").read_text(encoding="utf-8")
+
+
 @router.get("/demo/checkout/{session_id}", response_class=HTMLResponse, include_in_schema=False)
 def demo_checkout_page(session_id: str, db: Session = Depends(get_session)):
     payment = db.scalar(select(Payment).where(Payment.provider_session_id == session_id)) or _404("session")
     appt = payment.appointment
-    return f"""<!doctype html><html><head><meta name=viewport content="width=device-width,initial-scale=1">
-<title>Demo checkout</title><style>body{{font-family:system-ui;background:#f6f9fc;display:grid;place-items:center;
-min-height:100vh;margin:0}}.c{{background:#fff;padding:32px;border-radius:12px;box-shadow:0 4px 24px #0001;
-max-width:360px;width:90%}}button{{width:100%;padding:12px;border:0;border-radius:8px;background:#635bff;color:#fff;
-font-size:16px;cursor:pointer}}small{{color:#697386}}</style></head><body><div class=c>
-<small>DEMO MODE: simulates Stripe Checkout</small><h2>{appt.slot.doctor.specialty} consultation</h2>
-<p>{appt.slot.doctor.name}<br>{fmt_dt(appt.slot.starts_at)}</p>
-<h1>R$ {payment.amount_cents / 100:.2f}</h1><p>Status: <b>{payment.status}</b></p>
-<form method=post action="/demo/checkout/{session_id}/pay"><button>Pay (test)</button></form></div></body></html>"""
+    amount = f"R$ {payment.amount_cents / 100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if payment.status == "paid":
+        body = f"""<div class="paid"><div class="check">✓</div><h2>Payment received</h2>
+<p>{amount} paid. Your appointment is confirmed and a WhatsApp message is on its way.</p></div>
+<a class="back" href="/">← Back to the chat</a>"""
+    else:
+        body = f"""<div class="amount">{amount}</div>
+<form method="post" action="/demo/checkout/{escape(session_id)}/pay">
+<label for="card">Card information</label>
+<input class="field" id="card" value="4242 4242 4242 4242" readonly aria-readonly="true">
+<div class="row"><input class="field" value="12 / 34" readonly aria-label="Expiry">
+<input class="field" value="123" readonly aria-label="CVC"></div>
+<button>Pay {amount}</button></form>"""
+    values = {
+        "specialty": appt.slot.doctor.specialty,
+        "doctor": appt.slot.doctor.name,
+        "when": fmt_dt(appt.slot.starts_at),
+        "appointment_id": str(appt.id),
+    }
+    html = CHECKOUT_TEMPLATE.replace("{body}", body)
+    for key, value in values.items():
+        html = html.replace("{" + key + "}", escape(value))
+    return html
 
 
 @router.post("/demo/checkout/{session_id}/pay", include_in_schema=False)
 def demo_checkout_pay(session_id: str, db: Session = Depends(get_session)):
     """Emits a *signed* checkout.session.completed event through the exact same
     verification + idempotency path a real Stripe webhook takes."""
-    event = payments.build_demo_completed_event(session_id)
-    payload = json.dumps(event).encode()
-    signature = payments.sign_payload(payload, get_settings().stripe_webhook_secret)
-    process_stripe_webhook(db, payload, signature)
+    payment = db.scalar(select(Payment).where(Payment.provider_session_id == session_id)) or _404("session")
+    if payment.status != "paid":
+        event = payments.build_demo_completed_event(session_id)
+        payload = json.dumps(event).encode()
+        signature = payments.sign_payload(payload, get_settings().stripe_webhook_secret)
+        process_stripe_webhook(db, payload, signature)
     return RedirectResponse(f"/demo/checkout/{session_id}", status_code=303)
 
 

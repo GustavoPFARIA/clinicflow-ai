@@ -1,4 +1,4 @@
-# Eval results: `scripted-policy`
+# Eval results: `scripted-policy` · embeddings: `bge-small-en-v1.5`
 
 | Metric | Score |
 |---|---|

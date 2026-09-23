@@ -33,7 +33,9 @@ class LLMResponse:
 class LLM(Protocol):
     name: str
 
-    def complete(self, system: str, messages: list[dict], tools: list[dict]) -> LLMResponse: ...
+    def complete(self, system: list[str], messages: list[dict], tools: list[dict]) -> LLMResponse:
+        """`system` is a list of blocks ordered from most to least stable."""
+        ...
 
 
 class AnthropicLLM:
@@ -44,14 +46,24 @@ class AnthropicLLM:
         self.model = model
         self.name = model
 
-    def complete(self, system: str, messages: list[dict], tools: list[dict]) -> LLMResponse:
+    def complete(self, system: list[str], messages: list[dict], tools: list[dict]) -> LLMResponse:
+        # Prompt caching: the cache breakpoint on the first system block covers the
+        # tool definitions + static instructions (identical for every patient), so
+        # each agent step after the first reads them at ~10% of the input price.
+        blocks = [{"type": "text", "text": system[0], "cache_control": {"type": "ephemeral"}}]
+        blocks += [{"type": "text", "text": text} for text in system[1:]]
         resp = self.client.messages.create(
-            model=self.model, max_tokens=1024, system=system, messages=messages, tools=tools
+            model=self.model, max_tokens=1024, system=blocks, messages=messages, tools=tools
         )
         content = [b.model_dump(include={"type", "text", "id", "name", "input"}) for b in resp.content]
         return LLMResponse(
             content=content,
-            usage={"input_tokens": resp.usage.input_tokens, "output_tokens": resp.usage.output_tokens},
+            usage={
+                "input_tokens": resp.usage.input_tokens,
+                "output_tokens": resp.usage.output_tokens,
+                "cache_read_input_tokens": resp.usage.cache_read_input_tokens or 0,
+                "cache_creation_input_tokens": resp.usage.cache_creation_input_tokens or 0,
+            },
         )
 
 
@@ -160,7 +172,7 @@ class ScriptedLLM:
         earlier = [messages[i]["content"] for i in user_texts[:-1]]
         return messages[start]["content"], earlier, steps
 
-    def complete(self, system: str, messages: list[dict], tools: list[dict]) -> LLMResponse:
+    def complete(self, system: list[str], messages: list[dict], tools: list[dict]) -> LLMResponse:
         raw, earlier, steps = self._turn(messages)
         text = normalize(raw)
         done = {name: result for name, _, result in steps}
@@ -231,7 +243,7 @@ class ScriptedLLM:
             if "list_available_slots" not in done:
                 args = {"specialty": specialty}
                 if "tomorrow" in text or "amanha" in text:
-                    args["day"] = _tomorrow(system)
+                    args["day"] = _tomorrow(" ".join(system))
                 return self._call("list_available_slots", **args)
             return self._say(self._render_slots(done["list_available_slots"]))
 

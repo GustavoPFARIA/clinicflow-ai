@@ -32,6 +32,7 @@ from app.agent.llm import get_llm  # noqa: E402
 from app.crm import find_patient_by_phone  # noqa: E402
 from app.db import SessionLocal, init_db  # noqa: E402
 from app.models import Slot  # noqa: E402
+from app.rag.embeddings import get_embedder  # noqa: E402
 
 PHONES = {"ana": "+5562991110001", "bruno": "+5562991110002", "carla": "+5562991110003"}
 
@@ -99,7 +100,7 @@ def report(results: list[dict], model: str) -> str:
         return f"{sum(vals)}/{len(vals)} ({100 * sum(vals) / len(vals):.0f}%)" if vals else "-"
 
     lines = [
-        f"# Eval results: `{model}`",
+        f"# Eval results: `{model}` · embeddings: `{get_embedder().name}`",
         "",
         "| Metric | Score |",
         "|---|---|",

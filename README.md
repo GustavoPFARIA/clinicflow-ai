@@ -7,7 +7,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
 ![Claude](https://img.shields.io/badge/LLM-Claude%20tool%20use-d97757)
 ![Evals](https://img.shields.io/badge/agent%20evals-30%2F30-brightgreen)
-![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-51%20passing-brightgreen)
 
 > ClinicFlow AI is an open-source reference implementation of the AI patient-engagement platform I built and ran in production at a healthcare clinic in Brazil. It is rebuilt from scratch with synthetic data. No proprietary code or patient information is included.
 
@@ -28,14 +28,14 @@ In production, the original system cut front-desk workload by up to 70% and book
 | | |
 |---|---|
 | 🤖 **Tool-using LLM agent** | Claude with native tool use and 9 scoped tools (book, reschedule, cancel, pay, results, search, handoff…). Multi-step plans, e.g. *find the appointment → cancel it*. |
-| 📚 **Hybrid RAG** | pgvector dense search + BM25, fused with Reciprocal Rank Fusion, a relevance gate against off-topic grounding, and cited answers. |
+| 📚 **Hybrid RAG** | Real sentence embeddings (`bge-small-en-v1.5`, local ONNX, no API key) in pgvector + BM25, fused with Reciprocal Rank Fusion, a calibrated relevance gate against off-topic grounding, and cited answers. |
 | 💳 **Stripe payments** | Checkout Sessions with idempotency keys and **signed webhooks** (HMAC, timestamp tolerance against replay). Each event is processed exactly once. |
 | 🏥 **EHR / LIS integration** | FHIR R4 facade (`Patient`, `Appointment`, `DiagnosticReport` with LOINC codes). Released results trigger a WhatsApp notification. |
 | 🗂️ **CRM, single source of truth** | Every booking, payment, message and handoff lands on the patient's timeline: a 360° view for staff. |
 | ⚙️ **n8n orchestration** | Importable workflows for 24h reminders, payment follow-ups and an event router (exam released → notify patient, handoff → Slack). |
 | 🛡️ **Guardrails outside the model** | Emergency detection that bypasses the LLM, refusal of medical advice, a link allow-list against hallucinated or injected URLs, and a step budget that fails safe to a human. |
 | 🔒 **Privacy by design (LGPD / HIPAA)** | CPF, phone, e-mail and card numbers are redacted **before** anything reaches the LLM provider and restored in the reply. Tool authorization is enforced in code, never in prompts. |
-| 📏 **LLMOps** | 30-case offline eval suite (tool trajectory, grounding, safety, privacy) gating CI, plus per-turn traces, latency and token usage. |
+| 📏 **LLMOps** | 30-case offline eval suite (tool trajectory, grounding, safety, privacy) gating CI, **prompt caching** of tools + static instructions, and per-turn traces with latency and token/cache usage. |
 | 🧪 **Runs with zero keys** | A deterministic demo mode drives the same agent loop, so anyone can clone it and try it in under a minute. |
 
 ## Architecture
@@ -137,9 +137,20 @@ The API runs at `:8000` and n8n at `:5678`. Activate the three imported workflow
 | Safety guardrails | 4/4 (100%) |
 | PII never sent to LLM | 1/1 (100%) |
 
-These scores are from the deterministic demo policy, so they validate the **system**: tools, retrieval, guardrails and privacy plumbing. Run the same suite with `LLM_PROVIDER=anthropic` to score the model itself. See [`evals/results.md`](evals/results.md) for every case.
+**Read this before the 100%.** In CI the agent runs on a deterministic scripted policy that speaks the exact Anthropic tool-use protocol, so the scores validate the **system**: tool contracts, multi-step flows, retrieval, guardrails and privacy plumbing. They do not measure Claude's reasoning. To score the model itself, run the same suite with `LLM_PROVIDER=anthropic`. See [`evals/results.md`](evals/results.md) for every case.
 
 The suite earned its keep during development. It caught two real bugs: a CPF inside the query was skewing retrieval (fixed by stripping identifiers from search queries), and an off-topic question was being "grounded" on an unrelated chunk through one shared word (fixed with a term-coverage relevance gate).
+
+### Calibrating the relevance gate
+
+Cosine scales differ a lot between embedding models, so the "is this chunk relevant at all?" threshold is set per provider **from measurements**, not guessed. Top-1 similarity with `bge-small-en-v1.5`:
+
+| Query set | Top-1 cosine | Top-1 correct |
+|---|---|---|
+| 12 clinic questions, including paraphrases like *"can I get my money back if I cancel"* | **0.68 – 0.89** | 12/12 |
+| 5 off-topic questions (trivia, code, weather, restaurants) | **0.43 – 0.57** | n/a (must be rejected) |
+
+The gate sits at **0.62**, the midpoint of the gap, so off-topic questions are declined instead of being answered from the nearest random chunk.
 
 ## Engineering decisions
 
@@ -148,6 +159,8 @@ The suite earned its keep during development. It caught two real bugs: a CPF ins
 - **Exactly-once side effects.** Stripe events and WhatsApp message ids go through an idempotency ledger. Checkout creation uses Stripe idempotency keys, and reminder sends are idempotent so n8n can retry freely.
 - **Notifications carry no clinical data.** "Your result is ready" goes out as a push; the result itself is only shown inside the verified conversation. Preliminary results are never exposed, not even through FHIR.
 - **The API owns business rules; n8n owns time and fan-out.** Workflows stay thin and replaceable, and if n8n is down, critical notifications fall back to inline delivery.
+- **Prompt caching by design.** The system prompt is split into a static block (instructions, cached with the tool definitions) and a small per-patient context block. The cache key is identical for every patient, so every agent step after the first reads the bulk of the prompt at a fraction of the price ([test](tests/test_llm_provider.py)).
+- **Tested on the real database.** CI runs the full suite twice: on SQLite, and on Postgres + pgvector as a service container.
 - **Pluggable at every edge.** LLM (`LLM` protocol), embeddings (`Embedder` protocol), payments, WhatsApp and EHR all sit behind small interfaces with local fallbacks.
 
 ## Project structure
@@ -155,7 +168,7 @@ The suite earned its keep during development. It caught two real bugs: a CPF ins
 ```
 app/
   agent/          agent loop, tools, LLM providers, guardrails, system prompt
-  rag/            embeddings + hybrid retriever (pgvector / BM25 / RRF)
+  rag/            embeddings (bge-small / hashing) + hybrid retriever (pgvector / BM25 / RRF)
   integrations/   Stripe, WhatsApp Cloud API, n8n events
   ehr/            FHIR R4 mapping
   api/            chat, CRM, FHIR, webhooks, n8n automation endpoints
@@ -164,12 +177,12 @@ app/
 data/knowledge/   clinic knowledge base (markdown)
 evals/            eval dataset + runner
 n8n/workflows/    importable n8n workflows
-tests/            50 unit & integration tests
+tests/            51 unit & integration tests
 ```
 
 ## Production notes
 
-The original deployment also ran n8n in queue mode (Redis + autoscaled workers + dead-letter queues), Grafana dashboards, and prompt versioning with offline evals on every prompt change. Natural next steps for this repo: a hosted embedding model behind the `Embedder` protocol, per-tenant knowledge bases, and OpenTelemetry traces for each agent step.
+The original deployment also ran n8n in queue mode (Redis + autoscaled workers + dead-letter queues), Grafana dashboards, and prompt versioning with offline evals on every prompt change. Natural next steps for this repo: Alembic migrations, per-tenant knowledge bases, a cross-encoder reranker, and OpenTelemetry traces for each agent step.
 
 ## Tech stack
 

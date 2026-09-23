@@ -3,7 +3,8 @@ import tempfile
 from pathlib import Path
 
 _tmp = Path(tempfile.mkdtemp()) / "test.db"
-os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.as_posix()}"
+# CI also runs the suite against Postgres + pgvector via TEST_DATABASE_URL
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{_tmp.as_posix()}"
 os.environ["LLM_PROVIDER"] = "mock"
 os.environ["N8N_EVENT_WEBHOOK_URL"] = ""
 os.environ.pop("STRIPE_SECRET_KEY", None)

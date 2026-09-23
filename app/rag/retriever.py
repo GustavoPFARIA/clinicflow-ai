@@ -16,7 +16,6 @@ from app.privacy import strip_pii
 from app.rag.embeddings import Embedder, cosine, get_embedder, stem, tokenize
 
 RRF_K = 60
-MIN_VECTOR_SIMILARITY = 0.3
 MIN_TERM_COVERAGE = 0.3
 
 
@@ -107,7 +106,7 @@ class HybridRetriever:
 
     def search(self, query: str, k: int = 3) -> list[Hit]:
         query = strip_pii(query)  # identifiers carry no retrieval signal, only risk
-        query_vec = self.embedder.embed(query)
+        query_vec = self.embedder.embed_query(query)
         dense = self._vector_ranking(query_vec, limit=20)
         sparse = self._bm25_ranking(query)[:20]
 
@@ -126,7 +125,7 @@ class HybridRetriever:
             sim, (kws, coverage) = sims.get(cid, 0.0), kw.get(cid, (0.0, 0.0))
             # relevance gate: an out-of-scope query must not get "grounded" on a
             # chunk that shares one incidental word with it
-            if sim < MIN_VECTOR_SIMILARITY and coverage < MIN_TERM_COVERAGE:
+            if sim < self.embedder.min_similarity and coverage < MIN_TERM_COVERAGE:
                 continue
             c = by_id[cid]
             hits.append(Hit(c.id, c.source, c.heading, c.content, score, sim, kws))
