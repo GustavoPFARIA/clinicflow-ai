@@ -15,3 +15,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # stay on the Python version CI tests against
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
