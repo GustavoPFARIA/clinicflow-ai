@@ -11,9 +11,9 @@
 
 > ClinicFlow AI is an open-source reference implementation of the AI patient-engagement platform I built and ran in production at a healthcare clinic in Brazil. It is rebuilt from scratch with synthetic data. No proprietary code or patient information is included.
 
-<!-- Record a 20s GIF of the demo UI and save it as docs/demo.gif, then uncomment:
-![ClinicFlow AI demo](docs/demo.gif)
--->
+![ClinicFlow AI demo: RAG answer, booking, Stripe payment, CRM update and emergency guardrail](docs/demo.gif)
+
+<sub>RAG answer with citation → multi-step booking → Stripe payment → signed webhook confirms → CRM timeline → emergency guardrail. The right panel is the live agent trace.</sub>
 
 ---
 

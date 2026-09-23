@@ -9,8 +9,8 @@ jobs:
     name: Lint, tests (SQLite) and agent evals
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -43,8 +43,8 @@ jobs:
     env:
       TEST_DATABASE_URL: postgresql+psycopg://clinicflow:clinicflow@localhost:5432/clinicflow
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -56,5 +56,5 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: docker build -t clinicflow-ai .
