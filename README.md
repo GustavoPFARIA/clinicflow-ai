@@ -2,7 +2,7 @@
 
 **A WhatsApp AI agent for healthcare clinics.** It books and reschedules appointments, collects payments through Stripe, answers patient questions with RAG, delivers lab results from the EHR/LIS and keeps a 360° CRM timeline, orchestrated with n8n.
 
-[![CI](https://github.com/<your-github-user>/clinicflow-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/<your-github-user>/clinicflow-ai/actions)
+[![CI](https://github.com/GustavoPFARIA/clinicflow-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/GustavoPFARIA/clinicflow-ai/actions)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
 ![Claude](https://img.shields.io/badge/LLM-Claude%20tool%20use-d97757)
@@ -190,6 +190,6 @@ Python 3.12 · FastAPI · SQLAlchemy · PostgreSQL + pgvector · Anthropic Claud
 
 ---
 
-Built by **Gustavo do Prado**, AI Engineer focused on LLM agents, automation and integrations. [LinkedIn](https://www.linkedin.com/in/<your-linkedin>) · [Email](mailto:<your-email>)
+Built by **Gustavo do Prado** ([@GustavoPFARIA](https://github.com/GustavoPFARIA)), AI Engineer focused on LLM agents, automation and integrations.
 
 Licensed under MIT.
