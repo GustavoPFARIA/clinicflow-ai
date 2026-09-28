@@ -10,11 +10,13 @@
   --accent:#0f766e;--accent-soft:#ccfbf1;--chat:#efeae2;--in:#fff;--out:#d9fdd3;
   --warn:#b54708;--warn-soft:#fef0c7;--err:#b42318;--err-soft:#fee4e2;--ok:#067647;--ok-soft:#dcfae6;
   --code:#f2f4f7;
+  --wa-head:#008069;--wa-green:#00A884;--wa-dot:#00000010;--wa-link:#027EB5;--wa-tick:#53BDEB;--wa-out-time:#667781;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0b0f14;--panel:#121820;--ink:#e6edf3;--muted:#8b98a5;--line:#243040;
   --accent:#2dd4bf;--accent-soft:#0f3b37;--chat:#0b141a;--in:#1f2c34;--out:#005c4b;
   --warn:#fdb022;--warn-soft:#3b2a0a;--err:#f97066;--err-soft:#3d1512;--ok:#47cd89;--ok-soft:#0d3322;--code:#1a222c;
+  --wa-head:#202C33;--wa-green:#00A884;--wa-dot:#ffffff0a;--wa-link:#53BDEB;--wa-tick:#53BDEB;--wa-out-time:#ffffff99;
 }}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -75,6 +77,49 @@ th{color:var(--muted);font-weight:500}
 .timeline li::before{content:"";position:absolute;left:-5px;top:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .timeline code{font-size:11px;color:var(--accent)}
 .tablewrap{overflow-x:auto}
+
+/* WhatsApp-style chat */
+.phone-head{background:var(--wa-head)}
+.phone-head .status-line{font-size:12px;opacity:.85}
+#chat{background-color:var(--chat);background-image:radial-gradient(var(--wa-dot) 1px,transparent 1px);background-size:18px 18px;gap:4px}
+.msg{position:relative;padding:6px 9px 18px;min-width:84px;line-height:1.4;border-radius:8px}
+.msg .time{position:absolute;right:8px;bottom:3px;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.msg.user .time{color:var(--wa-out-time)}
+.msg.user .time::after{content:" ✓✓";color:var(--wa-tick)}
+.msg.user{border-top-right-radius:0;margin-top:6px}
+.msg.assistant,.msg.push{border-top-left-radius:0;margin-top:6px}
+.msg.user::before,.msg.assistant::before,.msg.push::before{content:"";position:absolute;top:0;width:8px;height:10px}
+.msg.user::before{right:-7px;background:var(--out);clip-path:polygon(0 0,100% 0,0 100%)}
+.msg.assistant::before,.msg.push::before{left:-7px;background:var(--in);clip-path:polygon(0 0,100% 0,100% 100%)}
+.msg.push{border-left:0}
+.msg .tag{color:var(--wa-green)}
+.opts{display:flex;flex-direction:column;gap:4px;margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+.opt{border:0;background:none;color:var(--wa-link);font:500 13.5px inherit;padding:6px 4px;cursor:pointer;text-align:center;border-radius:6px}
+.opt:hover,.opt:focus-visible{background:var(--code);outline:none}
+.opt:disabled{color:var(--muted);cursor:default;background:none}
+.paybtn{display:block;margin-top:8px;text-align:center;background:var(--wa-green);color:#fff !important;text-decoration:none;font-weight:600;padding:8px;border-radius:8px}
+.typing-bubble{align-self:flex-start;background:var(--in);border-radius:8px;border-top-left-radius:0;padding:10px 14px;display:flex;gap:4px;margin-top:6px}
+.typing-bubble i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.typing-bubble i:nth-child(2){animation-delay:.2s}.typing-bubble i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+.day{align-self:center;background:var(--panel);color:var(--muted);font-size:11.5px;padding:3px 10px;border-radius:6px;margin:6px 0;box-shadow:0 1px 1px #0000001a}
+.chips{scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.demo-note{display:flex;gap:10px;align-items:flex-start;background:var(--warn-soft);color:var(--ink);border-bottom:1px solid var(--line);padding:8px 12px;font-size:12.5px;line-height:1.4}
+.demo-note b{color:var(--warn)}
+.demo-note button{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
+
+/* readable trace */
+.tstep{display:grid;grid-template-columns:28px 1fr;gap:10px;margin-bottom:12px}
+.tstep .dot{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:600 12px ui-monospace,Consolas,monospace;background:var(--accent-soft);color:var(--accent)}
+.tstep.err .dot{background:var(--err-soft);color:var(--err)}
+.tstep.final .dot{background:var(--ok-soft);color:var(--ok)}
+.tstep h4{margin:3px 0 2px;font-size:14px}
+.tstep h4 code{font-size:13px;color:var(--accent)}
+.tstep p{margin:0;color:var(--muted);font-size:13px}
+.tstep details{margin-top:4px}
+.tstep summary{cursor:pointer;font-size:12px;color:var(--accent)}
+.tstep pre{background:var(--code);border-radius:8px;margin-top:6px;max-height:260px;overflow:auto}
+.trace-intro{font-size:13px;color:var(--muted);margin:0 0 14px}
 .hint{color:var(--muted);font-size:13px;margin:0 0 14px}
 .fcard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .fcard .rt{font:600 11px ui-monospace,Consolas,monospace;color:var(--accent);text-transform:none}
@@ -94,7 +139,11 @@ details.raw{margin-top:14px}details.raw summary{cursor:pointer;color:var(--accen
 </header>
 <main>
   <section class="card phone" aria-label="WhatsApp simulator">
-    <div class="phone-head"><div class="avatar">C</div><div><b>ClinicFlow Clinic</b><small>AI assistant · WhatsApp</small></div></div>
+    <div class="phone-head"><div class="avatar">C</div><div><b>ClinicFlow Clinic</b><small class="status-line" id="status-line">online · AI assistant</small></div></div>
+    <div class="demo-note" id="demo-note" hidden>
+      <span><b>Demo mode:</b> scripted replies, no API key needed. Use the suggestions below, or connect Claude or OpenAI for free conversation.</span>
+      <button type="button" id="demo-note-close" aria-label="Dismiss">×</button>
+    </div>
     <div id="chat" aria-live="polite"></div>
     <div class="chips" id="chips"></div>
     <form class="composer" id="composer">
@@ -126,7 +175,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const linkify = s => esc(s).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
 const SUGGESTIONS = [
-  "Hi", "Book a cardiology appointment", "slot 2", "Pay for my appointment",
+  "Hi", "Book a cardiology appointment", "Pay for my appointment",
   "Are my exam results ready?", "Do I need to fast before a lipid panel?", "Do you accept Unimed?",
   "Reschedule my appointment", "Cancel my appointment", "Should I take ibuprofen?",
   "I have chest pain", "I want to talk to a human", "What's the capital of France?"
@@ -166,15 +215,43 @@ async function refresh() {
   renderChat(data); renderCRM(data); loadFHIR();
 }
 
+const SLOT_LINE = /^[•\-]\s*slot (\d+): (.+)$/;
+const CHECKOUT = /(https?:\/\/\S*\/(?:demo\/checkout|c\/pay)\S*|https:\/\/checkout\.stripe\.com\S*)/;
+const clock = iso => {
+  const d = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z");
+  return isNaN(d) ? "" : d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+};
+
+// Turn the agent's plain text into WhatsApp-style interactive messages:
+// slot lists become tappable options, checkout links become a Pay button.
+function bubbleBody(m, isLast) {
+  const lines = m.content.split("\n");
+  const slots = lines.map(l => l.match(SLOT_LINE)).filter(Boolean);
+  const pay = m.role !== "user" && m.content.match(CHECKOUT);
+  let text = lines.filter(l => !SLOT_LINE.test(l) && !/^Reply 'slot/.test(l)).join("\n");
+  if (pay) text = text.replace(pay[0], "").replace(/\s*here:\s*$/m, ".").trim();
+  let html = linkify(text);
+  if (m.role === "assistant" && slots.length) {
+    html += `<div class="opts">${slots.map(s =>
+      `<button type="button" class="opt" data-say="slot ${s[1]}"${isLast ? "" : " disabled"}>${esc(s[2])}</button>`).join("")}</div>`;
+  }
+  if (pay) html += `<a class="paybtn" href="${esc(pay[0])}" target="_blank" rel="noopener">Pay securely with Stripe</a>`;
+  return html;
+}
+
 function renderChat(data) {
   const items = [
     ...data.conversation.map((m, i) => ({...m, k: 0, i})),
     ...data.outbox.map((m, i) => ({role: "push", content: m.body, at: m.at, k: 1, i})),
   ].sort((a, b) => a.at.localeCompare(b.at) || a.k - b.k || a.i - b.i);
+  const lastAssistant = items.map(m => m.role).lastIndexOf("assistant");
   const chat = $("#chat");
-  chat.innerHTML = items.length ? items.map(m =>
-    `<div class="msg ${m.role}">${m.role === "push" ? '<span class="tag">Automated message</span>' : ""}${linkify(m.content)}</div>`
-  ).join("") : '<div class="empty">No messages yet. Try a suggestion below.</div>';
+  chat.innerHTML = items.length
+    ? '<div class="day">Today</div>' + items.map((m, idx) =>
+        `<div class="msg ${m.role}">${m.role === "push" ? '<span class="tag">Automated message</span>' : ""}` +
+        `${bubbleBody(m, idx === lastAssistant && idx === items.length - 1)}<span class="time">${clock(m.at)}</span></div>`
+      ).join("")
+    : '<div class="empty">Say hi, or tap a suggestion below.</div>';
   chat.scrollTop = chat.scrollHeight;
 }
 
@@ -222,29 +299,66 @@ async function loadFHIR() {
   ].map(([t, j]) => t + "\n" + JSON.stringify(j, null, 2)).join("\n\n");
 }
 
+// One human-readable line per tool result, so the trace reads like a story.
+function summarize(t) {
+  const r = t.result || {};
+  if (t.is_error) return r.error || "Failed";
+  switch (t.tool) {
+    case "search_knowledge_base": return r.results?.length ? `Found ${r.results.length} relevant passage(s), top: ${r.results[0].citation}` : "Nothing relevant found, so the agent declines";
+    case "list_available_slots": return `${r.slots?.length ?? 0} open ${r.specialty} slot(s)`;
+    case "book_appointment": return `Appointment #${r.appointment_id} created: ${r.specialty}, ${r.when} (unpaid)`;
+    case "create_payment_link": return r.status === "already_paid" ? "Already paid" : `Stripe checkout created for ${r.amount}`;
+    case "get_my_appointments": return `${r.appointments?.length ?? 0} upcoming appointment(s)`;
+    case "cancel_appointment": return `Appointment #${r.appointment_id} cancelled${r.refund_initiated ? ", refund started" : ""}`;
+    case "reschedule_appointment": return `Moved to ${r.when}`;
+    case "get_exam_results": return (r.results || []).map(x => `${x.exam}: ${x.status}`).join(" · ") || "No exams";
+    case "escalate_to_human": return "Patient tagged needs_human, staff alerted";
+    default: return "Done";
+  }
+}
+
 function renderTrace(res) {
+  const guard = {emergency: "Emergency detected before any LLM call: fixed SAMU 192 reply, staff alerted.",
+                 step_limit: "Step budget exhausted: handed to a human."}[res.guardrail];
   const steps = res.trace.map((t, i) => `
-    <div class="step"><div class="step-head"><span>${i + 1}. ${esc(t.tool)}(${esc(JSON.stringify(t.args))})</span>
-    <span class="${t.is_error ? "bad" : "ok"}">${t.is_error ? "error" : "ok"}</span></div>
-    <pre>${esc(JSON.stringify(t.result, null, 2))}</pre></div>`).join("");
+    <div class="tstep${t.is_error ? " err" : ""}"><span class="dot">${i + 1}</span><div>
+      <h4>Called <code>${esc(t.tool)}</code>${Object.keys(t.args).length ? ` <small>${esc(JSON.stringify(t.args))}</small>` : ""}</h4>
+      <p>${esc(summarize(t))}</p>
+      <details><summary>Tool result (JSON)</summary><pre>${esc(JSON.stringify(t.result, null, 2))}</pre></details>
+    </div></div>`).join("");
+  const final = `<div class="tstep final"><span class="dot">✓</span><div><h4>${guard ? "Guardrail" : "Replied to the patient"}</h4>
+    <p>${esc(guard || (res.trace.length ? "Composed the answer from the tool results above." : "Answered directly, no tools needed."))}</p></div></div>`;
+  const u = res.usage || {};
   $("#pane-trace").innerHTML = `
+    <p class="trace-intro">What the agent did to produce the last reply, step by step.</p>
     <div class="meta"><span class="pill">model: ${esc(res.model)}</span><span class="pill">${res.latency_ms} ms</span>
     <span class="pill">${res.trace.length} tool call(s)</span>
+    ${u.input_tokens ? `<span class="pill">${u.input_tokens} in / ${u.output_tokens} out tokens</span>` : ""}
     ${res.guardrail ? `<span class="pill warn">guardrail: ${esc(res.guardrail)}</span>` : ""}</div>
-    ${steps || '<div class="empty">Answered without tools.</div>'}`;
+    ${steps}${final}`;
 }
 
 async function send(text) {
   if (!text.trim() || !current) return;
   const chat = $("#chat");
-  chat.insertAdjacentHTML("beforeend", `<div class="msg user">${esc(text)}</div><div class="typing" id="typing">typing…</div>`);
+  chat.querySelector(".empty")?.remove();
+  chat.querySelectorAll(".opt").forEach(b => b.disabled = true);
+  chat.insertAdjacentHTML("beforeend",
+    `<div class="msg user">${esc(text)}<span class="time">${new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</span></div>` +
+    `<div class="typing-bubble" id="typing" aria-label="typing"><i></i><i></i><i></i></div>`);
   chat.scrollTop = chat.scrollHeight;
+  $("#status-line").textContent = "typing…";
+  const started = Date.now();
   try {
     const res = await api("/api/chat", {method: "POST", body: JSON.stringify({phone: current.phone, message: text})});
+    // keep the typing indicator visible briefly so replies don't pop in unnaturally
+    const wait = 700 - (Date.now() - started);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
     renderTrace(res);
   } catch (e) {
     $("#pane-trace").innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
   }
+  $("#status-line").textContent = "online · AI assistant";
   lastSig = ""; await refresh();
 }
 
@@ -261,7 +375,19 @@ document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click
   document.querySelectorAll(".tabs button, .pane").forEach(x => x.classList.remove("active"));
   b.classList.add("active"); $("#pane-" + b.dataset.tab).classList.add("active");
 }));
-api("/health").then(h => $("#mode").textContent = h.demo_mode ? "demo mode · offline" : "live · " + h.llm);
+$("#chat").addEventListener("click", e => {
+  const b = e.target.closest(".opt");
+  if (b && !b.disabled) send(b.dataset.say);
+});
+api("/health").then(h => {
+  $("#mode").textContent = h.demo_mode ? "demo mode · offline" : "live · " + h.llm;
+  let dismissed = false; try { dismissed = localStorage.getItem("cf.demoNote") === "1"; } catch {}
+  $("#demo-note").hidden = !h.demo_mode || dismissed;
+});
+$("#demo-note-close").addEventListener("click", () => {
+  $("#demo-note").hidden = true;
+  try { localStorage.setItem("cf.demoNote", "1"); } catch {}
+});
 loadPatients();
 </script>
 </body>
