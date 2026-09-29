@@ -7,3 +7,4 @@ __pycache__/
 .env
 evals/results.json
 .models/
+server*.log

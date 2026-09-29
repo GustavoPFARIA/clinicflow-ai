@@ -67,6 +67,17 @@
 
 ## Quick start
 
+### One command
+
+Requires Python 3.12+. Clone the repository, then:
+
+- **Windows:** double-click `start.bat`
+- **macOS / Linux:** `./start.sh`
+
+The first run creates the environment and installs everything (1-2 minutes). Every run opens **http://localhost:8000** in your browser. It works immediately with no API key. For free conversation in any language, paste a free Gemini key into `.env` ([how](#connecting-a-model-free-option-included)).
+
+### Step by step
+
 **1. Clone the repository**
 
 ```bash
