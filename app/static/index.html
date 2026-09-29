@@ -19,6 +19,7 @@
   --wa-head:#202C33;--wa-green:#00A884;--wa-dot:#ffffff0a;--wa-link:#53BDEB;--wa-tick:#53BDEB;--wa-out-time:#ffffff99;
 }}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
 header h1{font-size:17px;margin:0}
@@ -216,7 +217,11 @@ async function refresh() {
 }
 
 const SLOT_LINE = /^[•\-]\s*slot (\d+): (.+)$/;
-const CHECKOUT = /(https?:\/\/\S*\/(?:demo\/checkout|c\/pay)\S*|https:\/\/checkout\.stripe\.com\S*)/;
+// Stops at ) ] and trailing punctuation, so markdown links from real models also work.
+const CHECKOUT = /(https?:\/\/[^\s)\]]*\/(?:demo\/checkout|c\/pay)[^\s)\]]*[^\s)\].,!?]|https:\/\/checkout\.stripe\.com[^\s)\]]*[^\s)\].,!?])/;
+// Slots offered in the latest turn, taken from the tool result (structured data),
+// so options render whatever wording the model used.
+let turnSlots = null;
 const clock = iso => {
   const d = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z");
   return isNaN(d) ? "" : d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
@@ -226,7 +231,10 @@ const clock = iso => {
 // slot lists become tappable options, checkout links become a Pay button.
 function bubbleBody(m, isLast) {
   const lines = m.content.split("\n");
-  const slots = lines.map(l => l.match(SLOT_LINE)).filter(Boolean);
+  let slots = lines.map(l => l.match(SLOT_LINE)).filter(Boolean);
+  if (!slots.length && isLast && m.role === "assistant" && turnSlots) {
+    slots = turnSlots.map(s => [null, String(s.slot_id), `${s.when} with ${s.doctor}`]);
+  }
   const pay = m.role !== "user" && m.content.match(CHECKOUT);
   let text = lines.filter(l => !SLOT_LINE.test(l) && !/^Reply 'slot/.test(l)).join("\n");
   if (pay) text = text.replace(pay[0], "").replace(/\s*here:\s*$/m, ".").trim();
@@ -355,6 +363,9 @@ async function send(text) {
     const wait = 700 - (Date.now() - started);
     if (wait > 0) await new Promise(r => setTimeout(r, wait));
     renderTrace(res);
+    const listed = (res.trace || []).filter(t => t.tool === "list_available_slots" && !t.is_error);
+    const booked = (res.trace || []).some(t => ["book_appointment", "reschedule_appointment"].includes(t.tool) && !t.is_error);
+    turnSlots = !booked && listed.length ? listed[listed.length - 1].result.slots : null;
   } catch (e) {
     $("#pane-trace").innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
   }

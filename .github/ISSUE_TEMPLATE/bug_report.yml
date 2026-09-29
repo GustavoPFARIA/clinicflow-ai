@@ -34,7 +34,9 @@ body:
       label: Mode
       options:
         - Demo (LLM_PROVIDER=mock)
-        - Claude (LLM_PROVIDER=anthropic)
+        - Gemini (GEMINI_API_KEY)
+        - Claude (ANTHROPIC_API_KEY)
+        - OpenAI or compatible (OPENAI_API_KEY)
     validations:
       required: true
   - type: textarea

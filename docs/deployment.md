@@ -39,7 +39,7 @@ flowchart LR
 ## Going live checklist
 
 1. **Database**: set `DATABASE_URL` to a managed Postgres with pgvector. Add Alembic migrations before the first schema change (tables are currently created with `create_all`).
-2. **LLM**: `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`. Run the eval suite against the chosen model first.
+2. **LLM**: a paid, zero-data-retention plan for real patient data (for example `ANTHROPIC_API_KEY`). The free Gemini tier may use prompts to improve Google's products, so it's only for synthetic data. Run the eval suite against the chosen model first.
 3. **Embeddings**: `EMBEDDING_PROVIDER=fastembed`, or a hosted model behind the `Embedder` protocol (re-calibrate `min_similarity`, see [RAG](rag.md#relevance-gate)).
 4. **Stripe**: live key and a dashboard webhook endpoint for `checkout.session.completed` and `charge.refunded`; copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
 5. **WhatsApp**: permanent system-user token, a registered webhook, and approved message templates for messages sent outside the 24-hour customer-service window (reminders, nudges and result notifications).

@@ -9,3 +9,4 @@ Short records of the decisions that shape ClinicFlow AI: the context, the choice
 | [0003](0003-hybrid-retrieval-with-relevance-gate.md) | Hybrid retrieval (dense + BM25, RRF) with a calibrated relevance gate | Accepted |
 | [0004](0004-api-owns-rules-n8n-owns-time.md) | The API owns business rules; n8n owns scheduling and fan-out | Accepted |
 | [0005](0005-idempotency-ledger.md) | A database idempotency ledger for all provider events | Accepted |
+| [0006](0006-real-models-with-graceful-degradation.md) | Real models by default, with graceful degradation | Accepted |

@@ -45,19 +45,30 @@ A case passes when all of its checks pass.
 ## Running
 
 ```bash
-python -m evals.run_evals                                  # scripted policy + hashing embeddings
-EMBEDDING_PROVIDER=fastembed python -m evals.run_evals     # real embeddings (what CI runs)
-LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=... python -m evals.run_evals   # score Claude itself
-LLM_PROVIDER=openai OPENAI_API_KEY=... python -m evals.run_evals         # score an OpenAI model
+LLM_PROVIDER=mock python -m evals.run_evals                 # offline policy + hashing embeddings
+LLM_PROVIDER=mock EMBEDDING_PROVIDER=fastembed python -m evals.run_evals   # what CI runs
+python -m evals.run_evals                                  # the model in .env (e.g. free Gemini)
 python -m evals.run_evals --only reschedule                # one case
 python -m evals.run_evals --min-pass-rate 0.95             # exit 1 below threshold (CI gate)
 ```
 
-Outputs: `evals/results.md` (committed, also published to the GitHub Actions job summary) and `evals/results.json` (per-case replies, tools, latency and token usage).
+Outputs: `evals/results.md` for the offline baseline (committed, and published to the GitHub Actions job summary), or `evals/results-<model>.md` for a real model, each with a `.json` of per-case replies, tools, latency and token usage. A `--only` debug run never overwrites the full reports.
 
 ## Interpreting the scores
 
-With the default scripted policy, a 100% score validates the **system**: tool contracts, retrieval, guardrails and privacy plumbing. It says nothing about model reasoning. Scores against Claude measure the model's tool selection and answer quality; expect some `must_contain` misses from valid paraphrases, and tune phrase checks rather than prompts when that happens.
+With the offline policy, a 100% score validates the **system**: tool contracts, retrieval, guardrails and privacy plumbing. It says nothing about model reasoning.
+
+With a real model the suite measures tool selection and answer quality. **Result: 34/34 with `gemini-3.8-flash` on the free tier** ([report](../evals/results-gemini-3.8-flash.md)). The first run scored 16/34. The misses were a mix of real agent bugs and brittle checks:
+
+| Finding | Kind | Fix |
+|---|---|---|
+| English messages answered in Portuguese | Agent bug | Language detected in code per message and stated to the model |
+| Off-topic trivia answered ("Paris") | Agent bug | Explicit scope rule |
+| Exact tool lists and exact sentences expected | Brittle eval | Required tools in order; no unrequested *successful* writes; facts or intent instead of wording |
+
+Real models are not deterministic, so expect small run-to-run variation. Across the final runs, tool trajectory, grounding, safety, PII and injection resistance stayed at 100%.
+
+**How checks are written:** `expect_tools` lists the tools that must be called, in order. Extra read-only lookups are allowed, but a state-changing tool (`book`, `cancel`, `reschedule`) that the case didn't expect fails it, unless the tool layer refused it (for example another patient's appointment). Each `must_contain` entry is a fact that must appear, and a list means "any of these equivalent phrasings".
 
 ## Adding a case
 

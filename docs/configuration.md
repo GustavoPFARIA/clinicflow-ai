@@ -13,8 +13,14 @@ Settings are read from environment variables or a `.env` file ([`app/config.py`]
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `mock` | `mock` (deterministic scripted policy), `anthropic` or `openai` |
-| `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
+| `LLM_PROVIDER` | `auto` | `auto` (first key found: Anthropic, OpenAI, Gemini; offline test policy if none), `anthropic`, `openai`, `gemini` or `mock` |
+| `GEMINI_API_KEY` | — | Google Gemini, free tier at aistudio.google.com/apikey |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Any Gemini model with function calling |
+| `GEMINI_FALLBACK_MODELS` | `["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]` | Tried in order when the main model is overloaded (503) or rate-limited (429) |
+| `OPENAI_BASE_URL` | — | Any OpenAI-compatible server (Ollama `http://localhost:11434/v1`, Groq, OpenRouter) |
+| `LLM_MIN_INTERVAL_S` | provider default | Minimum seconds between model calls (Gemini free tier: 6.5) |
+| `LLM_TIMEOUT_S` / `LLM_MAX_RETRIES` | `60` / `3` | Per-call timeout and SDK retries with backoff |
+| `ANTHROPIC_API_KEY` | — | Anthropic Claude |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Any Claude model with tool use |
 | `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai` |
 | `OPENAI_MODEL` | `gpt-5.5` | Any OpenAI model with function calling |

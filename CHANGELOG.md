@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-09-29
+
+### Fixed
+- With a real model, slot options and the Pay button didn't render: the UI parsed the offline policy's exact wording. Slots now come from the tool result, and payment links are recognized in any format, including markdown.
+- The "No model key configured" banner showed even with a model connected (`display` overrode `hidden`).
+
+### Changed
+- Documentation updated for real models: providers, configuration, evaluation results and methodology, troubleshooting for model errors, deployment guidance for patient data. ADR-0006 records the decision. New demo GIF recorded with Gemini.
+
 ## [1.3.0] - 2026-09-29
 
 ### Added

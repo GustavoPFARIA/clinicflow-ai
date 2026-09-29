@@ -46,9 +46,15 @@ Defined in [`tools.py`](../app/agent/tools.py). Every tool receives a `ToolConte
 
 | `LLM_PROVIDER` | Class | Use |
 |---|---|---|
+| `auto` (default) | — | Uses the first configured key: Anthropic, OpenAI, then Gemini; `mock` if none |
 | `anthropic` | `AnthropicLLM` | Claude with native tool use and prompt caching |
-| `openai` | `OpenAILLM` | OpenAI Chat Completions with function calling |
-| `mock` (default) | `ScriptedLLM` | Deterministic policy for demo, tests and CI |
+| `openai` | `OpenAILLM` | OpenAI Chat Completions with function calling, or any OpenAI-compatible server via `OPENAI_BASE_URL` |
+| `gemini` | `OpenAILLM` | Google Gemini through its OpenAI-compatible API (free tier), with model fallback |
+| `mock` | `ScriptedLLM` | Deterministic offline policy for tests and CI |
+
+`OpenAILLM` also handles what real providers need in production: request spacing for rate-limited tiers, **fallback to other models** with a cooldown when one is overloaded (503) or rate-limited (429), and round-tripping provider metadata such as **Gemini 3 thought signatures** with each tool call (stripped before calling Claude).
+
+**Model outages never reach the patient as an error.** If every model fails (invalid key, quota exhausted, provider down), `Agent.handle` rolls back the turn, replies politely and escalates to staff (`guardrail: llm_unavailable`). The reply language is detected in code for each message ([`language.py`](../app/agent/language.py)) and stated to the model, because models tend to answer in the language they associate with the clinic's location.
 
 The agent keeps **one internal message format** (Anthropic content blocks). `OpenAILLM` translates it to OpenAI messages (`tool_calls`, `role: tool`) and back, so tools, guardrails, redaction, evals and traces behave identically across providers. A test drives the full loop through the OpenAI adapter ([`tests/test_llm_provider.py`](../tests/test_llm_provider.py)).
 

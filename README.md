@@ -47,7 +47,7 @@
 |---|---|
 | Language | Python 3.12 |
 | API | FastAPI, Pydantic, Uvicorn |
-| LLM | Anthropic Claude (tool use, prompt caching), OpenAI (function calling); deterministic scripted policy for offline mode |
+| LLM | Google Gemini (free tier), Anthropic Claude (tool use, prompt caching), OpenAI and any OpenAI-compatible server; model fallback; deterministic offline test policy |
 | Agent interop | Model Context Protocol (MCP) server |
 | RAG | pgvector, fastembed (`bge-small-en-v1.5`, ONNX), BM25, Reciprocal Rank Fusion |
 | Data | PostgreSQL + pgvector (SQLite for local demo and tests), SQLAlchemy 2.0 |
@@ -55,7 +55,7 @@
 | Messaging | WhatsApp Cloud API |
 | Healthcare | FHIR R4, LOINC |
 | Automation | n8n |
-| Quality | pytest (55 tests), 34 agent evals incl. prompt injection, Ruff |
+| Quality | pytest (64 tests), 34 agent evals incl. prompt injection (34/34 with Gemini), Ruff |
 | Delivery | Docker, docker-compose, GitHub Actions (SQLite + Postgres jobs, image build), Dependabot |
 
 ## Prerequisites
@@ -309,7 +309,7 @@ Full list: [docs/configuration.md](docs/configuration.md)
 |-- data/knowledge/       # Clinic knowledge base (markdown, one topic per ## section)
 |-- evals/                # 34-case agent eval suite (incl. prompt injection) and runner
 |-- n8n/workflows/        # Importable n8n workflows
-|-- tests/                # 55 unit and integration tests
+|-- tests/                # 64 unit and integration tests
 |-- docs/                 # Full documentation and architecture decision records
 |-- Dockerfile
 `-- docker-compose.yml

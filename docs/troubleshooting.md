@@ -36,9 +36,17 @@ The model (~130 MB) downloads on first use. The Docker image pre-downloads it at
 
 `WHATSAPP_TOKEN` or `WHATSAPP_PHONE_NUMBER_ID` is not set, so messages only go to the outbox. That is the intended demo behavior.
 
+## The assistant replies "I'm having trouble answering right now"
+
+The model API failed after retries and fallbacks: an invalid or missing key, an exhausted quota, or the provider is down. The patient got a polite reply, and the conversation was handed to staff (`guardrail: llm_unavailable`). Check the server log for the underlying error. On Gemini, `Please pass a valid API key` means the key in `.env` is wrong. Create one at aistudio.google.com/apikey.
+
+## `model gemini-... unavailable (RateLimitError); falling back to ...` in the log
+
+Expected on the free tier: the main model was rate-limited or overloaded, so a lighter model answered. Tune `GEMINI_FALLBACK_MODELS` or `LLM_MIN_INTERVAL_S` if it happens constantly.
+
 ## `LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY`
 
-Set the key in `.env` and restart. API credits are billed separately from a Claude.ai subscription.
+You forced a provider without its key. Set the key in `.env`, or leave `LLM_PROVIDER=auto`. API credits are billed separately from a Claude.ai subscription.
 
 ## n8n workflows run but calls fail with `401`
 

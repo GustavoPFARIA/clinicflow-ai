@@ -60,7 +60,7 @@ docker compose exec n8n n8n import:workflow --separate --input=/workflows
 ## 3. Tests, lint and evals
 
 ```bash
-pytest -q                                   # 55 tests, SQLite
+pytest -q                                   # 64 tests, SQLite
 ruff check .                                # lint
 python -m evals.run_evals                   # 34 agent scenarios, writes evals/results.md
 EMBEDDING_PROVIDER=fastembed python -m evals.run_evals   # same, with real embeddings
@@ -79,8 +79,8 @@ TEST_DATABASE_URL=postgresql+psycopg://clinicflow:clinicflow@localhost:5432/clin
 Edit `.env` (see [Configuration](configuration.md)):
 
 ```ini
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...                     # free: aistudio.google.com/apikey (or ANTHROPIC_API_KEY / OPENAI_API_KEY)
+EMBEDDING_PROVIDER=fastembed
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...        # from `stripe listen` or the dashboard
 ```
