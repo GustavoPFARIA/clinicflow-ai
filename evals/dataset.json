@@ -241,6 +241,28 @@
     ]
   },
   {
+    "id": "book-while-unpaid",
+    "category": "booking",
+    "patient": "bruno",
+    "turns": [
+      "Book a cardiology appointment",
+      "slot {slot0}"
+    ],
+    "expect_tools": [],
+    "must_contain": [
+      [
+        "unpaid",
+        "pending",
+        "already have",
+        "already has",
+        "existing",
+        "not been paid",
+        "hasn't been paid",
+        "reschedule"
+      ]
+    ]
+  },
+  {
     "id": "appts-list",
     "category": "booking",
     "patient": "carla",

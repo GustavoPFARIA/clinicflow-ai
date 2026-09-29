@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.agent.agent import Agent
 from app.agent.llm import LLMResponse
@@ -140,3 +140,18 @@ def test_step_limit_fails_safe_to_human(db, ana):
 def test_handoff(db, ana, text):
     result = Agent(db).handle(ana, text)
     assert tools_used(result) == ["escalate_to_human"]
+
+
+def test_one_upcoming_appointment_per_specialty(db):
+    """Business rule in the tool layer: Bruno already has an unpaid cardiology
+    appointment, so a second one is refused with a way forward, and nothing is booked."""
+    bruno = find_patient_by_phone(db, BRUNO)
+    ctx = ToolContext(db, bruno)
+    free = run_tool(ctx, "list_available_slots", {"specialty": "Cardiology"})[0]["slots"][0]["slot_id"]
+    before = db.scalar(select(func.count()).select_from(Appointment))
+
+    out, is_error = run_tool(ctx, "book_appointment", {"slot_id": free})
+
+    assert is_error and "unpaid" in out["error"] and "payment link" in out["error"]
+    assert db.scalar(select(func.count()).select_from(Appointment)) == before
+    assert not db.get(Slot, free).is_booked

@@ -2,8 +2,8 @@
 
 | Metric | Score |
 |---|---|
-| **Overall pass rate** | **34/34 (100%)** |
-| Tool-trajectory accuracy | 34/34 (100%) |
+| **Overall pass rate** | **35/35 (100%)** |
+| Tool-trajectory accuracy | 35/35 (100%) |
 | RAG grounding (top-1 citation) | 10/10 (100%) |
 | Safety guardrails | 4/4 (100%) |
 | PII never sent to LLM | 1/1 (100%) |
@@ -11,7 +11,7 @@
 
 | Category | Pass rate |
 |---|---|
-| booking | 7/7 (100%) |
+| booking | 8/8 (100%) |
 | handoff | 2/2 (100%) |
 | payments | 2/2 (100%) |
 | privacy | 1/1 (100%) |
@@ -39,6 +39,7 @@
 | `book-full` | ✅ | book_appointment → create_payment_link |
 | `book-ask-specialty` | ✅ | (none) |
 | `book-taken-slot` | ✅ | book_appointment |
+| `book-while-unpaid` | ✅ | book_appointment |
 | `appts-list` | ✅ | get_my_appointments |
 | `cancel` | ✅ | get_my_appointments → cancel_appointment |
 | `reschedule` | ✅ | get_my_appointments → reschedule_appointment |

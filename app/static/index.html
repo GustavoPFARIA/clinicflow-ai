@@ -47,6 +47,7 @@ main{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:16px;padding
 .typing{align-self:flex-start;color:var(--muted);font-style:italic;font-size:12px}
 .chips{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;border-top:1px solid var(--line);background:var(--panel)}
 .chip{white-space:nowrap;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:12px}
+.chip:disabled,#composer button:disabled{opacity:.5;cursor:default}
 .chip:hover{border-color:var(--accent);color:var(--accent)}
 form.composer{display:flex;gap:8px;padding:10px;background:var(--panel);border-top:1px solid var(--line)}
 form.composer input{flex:1;padding:10px 12px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;min-width:0}
@@ -236,12 +237,16 @@ function bubbleBody(m, isLast) {
     slots = turnSlots.map(s => [null, String(s.slot_id), `${s.when} with ${s.doctor}`]);
   }
   const pay = m.role !== "user" && m.content.match(CHECKOUT);
-  let text = lines.filter(l => !SLOT_LINE.test(l) && !/^Reply 'slot/.test(l)).join("\n");
+  // When options are shown as buttons, drop the model's own text list of the same slots.
+  const optionLine = l => SLOT_LINE.test(l) || /^Reply 'slot/.test(l) ||
+    (slots.length && /(\bID:?\s*\d+|\bslot\s*\d+)/i.test(l) && /\d{1,2}:\d{2}/.test(l));
+  let text = lines.filter(l => !optionLine(l)).join("\n")
+    .replace(/\s*\(slot \d+\)\s*$/, "").replace(/\n{3,}/g, "\n\n").trim();
   if (pay) text = text.replace(pay[0], "").replace(/\s*here:\s*$/m, ".").trim();
   let html = linkify(text);
   if (m.role === "assistant" && slots.length) {
     html += `<div class="opts">${slots.map(s =>
-      `<button type="button" class="opt" data-say="slot ${s[1]}"${isLast ? "" : " disabled"}>${esc(s[2])}</button>`).join("")}</div>`;
+      `<button type="button" class="opt" data-say="${esc(s[2])} (slot ${s[1]})"${isLast ? "" : " disabled"}>${esc(s[2])}</button>`).join("")}</div>`;
   }
   if (pay) html += `<a class="paybtn" href="${esc(pay[0])}" target="_blank" rel="noopener">Pay securely with Stripe</a>`;
   return html;
@@ -346,13 +351,22 @@ function renderTrace(res) {
     ${steps}${final}`;
 }
 
+let busy = false;
+function setBusy(on) {
+  busy = on;
+  $("#input").disabled = on;
+  $("#composer button").disabled = on;
+  document.querySelectorAll("#chips .chip").forEach(c => c.disabled = on);
+}
+
 async function send(text) {
-  if (!text.trim() || !current) return;
+  if (!text.trim() || !current || busy) return;
+  setBusy(true);
   const chat = $("#chat");
   chat.querySelector(".empty")?.remove();
   chat.querySelectorAll(".opt").forEach(b => b.disabled = true);
   chat.insertAdjacentHTML("beforeend",
-    `<div class="msg user">${esc(text)}<span class="time">${new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</span></div>` +
+    `<div class="msg user">${esc(text.replace(/\s*\(slot \d+\)\s*$/, ""))}<span class="time">${new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</span></div>` +
     `<div class="typing-bubble" id="typing" aria-label="typing"><i></i><i></i><i></i></div>`);
   chat.scrollTop = chat.scrollHeight;
   $("#status-line").textContent = "typing…";
@@ -371,6 +385,8 @@ async function send(text) {
   }
   $("#status-line").textContent = "online · AI assistant";
   lastSig = ""; await refresh();
+  setBusy(false);
+  $("#input").focus();
 }
 
 $("#composer").addEventListener("submit", e => { e.preventDefault(); const v = $("#input").value; $("#input").value = ""; send(v); });

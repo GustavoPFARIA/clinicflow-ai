@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-09-29
+
+### Added
+- Business rule in the booking tool: one upcoming appointment per specialty. With an unpaid one, the agent offers to pay, reschedule or cancel it instead of booking another. New eval case `book-while-unpaid` (35 cases) and unit test.
+
+### Changed
+- Option buttons show the time the patient picked, not "slot N" (the slot id travels hidden). The model's duplicate text list is hidden when options are shown.
+- Faster replies on the free tier: the model adapter is reused across messages, so an overloaded model stays in cooldown, and failover to the next model is immediate instead of retrying and throttling.
+
+### Fixed
+- Messages could be sent twice while the agent was still answering; the composer, suggestions and options are locked until the reply arrives.
+
 ## [1.3.1] - 2026-09-29
 
 ### Fixed

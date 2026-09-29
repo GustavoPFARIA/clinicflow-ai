@@ -24,7 +24,7 @@ Defined in [`tools.py`](../app/agent/tools.py). Every tool receives a `ToolConte
 |---|---|---|
 | `search_knowledge_base` | `query` | Hybrid RAG search, returns up to 3 cited chunks |
 | `list_available_slots` | `specialty`, `day?` | Up to 5 future open slots |
-| `book_appointment` | `slot_id` | Reserves the slot, CRM event, `appointment.booked` event |
+| `book_appointment` | `slot_id` | Reserves the slot, CRM event, `appointment.booked` event. Refuses a second upcoming appointment in the same specialty (unpaid → offer to pay, reschedule or cancel it) |
 | `get_my_appointments` | — | Upcoming active appointments with payment status |
 | `reschedule_appointment` | `appointment_id`, `new_slot_id` | Moves the appointment, frees the old slot |
 | `cancel_appointment` | `appointment_id` | Cancels; paid → `refund_pending` |

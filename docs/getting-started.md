@@ -60,9 +60,9 @@ docker compose exec n8n n8n import:workflow --separate --input=/workflows
 ## 3. Tests, lint and evals
 
 ```bash
-pytest -q                                   # 64 tests, SQLite
+pytest -q                                   # 65 tests, SQLite
 ruff check .                                # lint
-python -m evals.run_evals                   # 34 agent scenarios, writes evals/results.md
+LLM_PROVIDER=mock python -m evals.run_evals # 35 agent scenarios offline, writes evals/results.md
 EMBEDDING_PROVIDER=fastembed python -m evals.run_evals   # same, with real embeddings
 ```
 

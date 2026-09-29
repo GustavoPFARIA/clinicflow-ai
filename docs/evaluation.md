@@ -58,7 +58,7 @@ Outputs: `evals/results.md` for the offline baseline (committed, and published t
 
 With the offline policy, a 100% score validates the **system**: tool contracts, retrieval, guardrails and privacy plumbing. It says nothing about model reasoning.
 
-With a real model the suite measures tool selection and answer quality. **Result: 34/34 with `gemini-3.8-flash` on the free tier** ([report](../evals/results-gemini-3.8-flash.md)). The first run scored 16/34. The misses were a mix of real agent bugs and brittle checks:
+With a real model the suite measures tool selection and answer quality. **Result: 34/35 with `gemini-3.8-flash` on the free tier** (34/34 on the previous suite; the one miss asked before creating the official payment link after refusing an injected one) ([report](../evals/results-gemini-3.8-flash.md)). The first run scored 16/34. The misses were a mix of real agent bugs and brittle checks:
 
 | Finding | Kind | Fix |
 |---|---|---|

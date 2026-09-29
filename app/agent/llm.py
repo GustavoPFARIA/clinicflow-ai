@@ -523,8 +523,24 @@ def _tomorrow(system: str) -> str:
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 
+_LLM_CACHE: dict[tuple, LLM] = {}
+
+
 def get_llm() -> LLM:
+    """One adapter per configuration, reused across requests, so the fallback
+    cooldown (which model is overloaded right now) survives between messages."""
     s = get_settings()
+    key = (
+        s.resolved_provider(), s.anthropic_api_key, s.anthropic_model, s.openai_api_key, s.openai_model,
+        s.openai_base_url, s.gemini_api_key, s.gemini_model, tuple(s.gemini_fallback_models),
+        s.llm_min_interval_s, s.llm_timeout_s, s.llm_max_retries,
+    )  # fmt: skip
+    if key not in _LLM_CACHE:
+        _LLM_CACHE[key] = _build_llm(s)
+    return _LLM_CACHE[key]
+
+
+def _build_llm(s) -> LLM:
     provider = s.resolved_provider()
     if provider == "anthropic":
         if not s.anthropic_api_key:
@@ -540,11 +556,12 @@ def get_llm() -> LLM:
     if provider == "gemini":
         if not s.gemini_api_key:
             raise RuntimeError("LLM_PROVIDER=gemini requires GEMINI_API_KEY")
-        # Free tier: rate-limited and sometimes overloaded, so space calls out and
-        # fall back to lighter models instead of failing the conversation.
-        interval = s.llm_min_interval_s if s.llm_min_interval_s is not None else 6.5
+        # Free tier: rate-limited and sometimes overloaded. Retrying a busy model wastes
+        # seconds the patient is waiting, so fail over to a lighter model right away
+        # (one quick retry) and let the cooldown keep the busy one aside for a while.
+        interval = s.llm_min_interval_s if s.llm_min_interval_s is not None else 0.0
         return OpenAILLM(
-            s.gemini_api_key, s.gemini_model, s.llm_timeout_s, s.llm_max_retries,
+            s.gemini_api_key, s.gemini_model, s.llm_timeout_s, min(s.llm_max_retries, 1),
             base_url=GEMINI_BASE_URL, min_interval_s=interval, fallback_models=s.gemini_fallback_models,
         )  # fmt: skip
     if provider == "mock":

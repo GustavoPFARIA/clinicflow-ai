@@ -18,7 +18,7 @@ Settings are read from environment variables or a `.env` file ([`app/config.py`]
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Any Gemini model with function calling |
 | `GEMINI_FALLBACK_MODELS` | `["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]` | Tried in order when the main model is overloaded (503) or rate-limited (429) |
 | `OPENAI_BASE_URL` | — | Any OpenAI-compatible server (Ollama `http://localhost:11434/v1`, Groq, OpenRouter) |
-| `LLM_MIN_INTERVAL_S` | provider default | Minimum seconds between model calls (Gemini free tier: 6.5) |
+| `LLM_MIN_INTERVAL_S` | — | Optional minimum seconds between model calls. Unset: no spacing; rate limits are handled by immediate fallback to the next model |
 | `LLM_TIMEOUT_S` / `LLM_MAX_RETRIES` | `60` / `3` | Per-call timeout and SDK retries with backoff |
 | `ANTHROPIC_API_KEY` | — | Anthropic Claude |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Any Claude model with tool use |

@@ -88,8 +88,39 @@ def list_available_slots(ctx: ToolContext, specialty: str, day: str | None = Non
     }
 
 
+def _upcoming_in_specialty(ctx: ToolContext, specialty: str) -> Appointment | None:
+    q = (
+        select(Appointment)
+        .join(Slot)
+        .join(Doctor)
+        .where(
+            Appointment.patient_id == ctx.patient.id,
+            Appointment.status.in_(["scheduled", "confirmed"]),
+            Slot.starts_at > ctx.now,
+            Doctor.specialty == specialty,
+        )
+        .order_by(Slot.starts_at)
+    )
+    return ctx.db.scalars(q).first()
+
+
 def book_appointment(ctx: ToolContext, slot_id: int) -> dict:
     slot = _free_slot(ctx, slot_id)
+    # Clinic rule, enforced here rather than in the prompt: one upcoming appointment
+    # per specialty. A patient with an unpaid one is steered to pay, move or cancel it.
+    existing = _upcoming_in_specialty(ctx, slot.doctor.specialty)
+    if existing is not None:
+        view = _appointment_view(existing)
+        if view["payment"] != "paid":
+            raise ToolError(
+                f"The patient already has an unpaid {view['specialty']} appointment on {view['when']} "
+                f"(appointment {existing.id}). Offer to send its payment link, reschedule it or cancel it "
+                "instead of booking another."
+            )
+        raise ToolError(
+            f"The patient already has a {view['specialty']} appointment on {view['when']} "
+            f"(appointment {existing.id}). Offer to reschedule it instead of booking a second one."
+        )
     slot.is_booked = True
     appt = Appointment(patient=ctx.patient, slot=slot)
     ctx.db.add(appt)
