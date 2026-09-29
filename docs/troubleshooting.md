@@ -2,7 +2,7 @@
 
 ## The demo does not understand my message
 
-Demo mode (`LLM_PROVIDER=mock`) uses a scripted policy that recognises English phrasings close to the suggestion chips, such as *book a cardiology appointment*, *slot 12*, *cancel my appointment* or *are my results ready?*. For free-form conversation in any language, set `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`.
+Without a model key, the offline policy (`LLM_PROVIDER=mock`) that recognises English phrasings close to the suggestion chips, such as *book a cardiology appointment*, *slot 12*, *cancel my appointment* or *are my results ready?*. For free-form conversation in any language, add a free `GEMINI_API_KEY` to `.env` (or a Claude / OpenAI key).
 
 ## `slot N` says the slot is not available
 

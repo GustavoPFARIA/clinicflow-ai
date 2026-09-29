@@ -141,7 +141,7 @@ details.raw{margin-top:14px}details.raw summary{cursor:pointer;color:var(--accen
   <section class="card phone" aria-label="WhatsApp simulator">
     <div class="phone-head"><div class="avatar">C</div><div><b>ClinicFlow Clinic</b><small class="status-line" id="status-line">online · AI assistant</small></div></div>
     <div class="demo-note" id="demo-note" hidden>
-      <span><b>Demo mode:</b> scripted replies, no API key needed. Use the suggestions below, or connect Claude or OpenAI for free conversation.</span>
+      <span><b>No model key configured:</b> an offline test policy is answering, so use the suggestions below. Add a free Gemini key (see README) for free conversation in any language.</span>
       <button type="button" id="demo-note-close" aria-label="Dismiss">×</button>
     </div>
     <div id="chat" aria-live="polite"></div>
@@ -380,7 +380,7 @@ $("#chat").addEventListener("click", e => {
   if (b && !b.disabled) send(b.dataset.say);
 });
 api("/health").then(h => {
-  $("#mode").textContent = h.demo_mode ? "demo mode · offline" : "live · " + h.llm;
+  $("#mode").textContent = h.demo_mode ? "offline · no model key" : "live · " + h.llm;
   let dismissed = false; try { dismissed = localStorage.getItem("cf.demoNote") === "1"; } catch {}
   $("#demo-note").hidden = !h.demo_mode || dismissed;
 });

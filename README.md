@@ -38,7 +38,8 @@
 - **Privacy by design (LGPD / HIPAA).** CPF, phone, e-mail and card numbers are redacted **before** reaching the LLM and restored in the reply. Tool authorization is enforced in code, never in prompts.
 - **Tested against prompt injection.** The eval suite attacks the agent with fake admin modes, cross-patient requests, injected payment links and rule-bypass attempts.
 - **LLMOps.** A 34-case eval suite gates CI, the prompt is cached, and every turn is traced with latency and token/cache usage.
-- **Runs with zero API keys.** A deterministic demo mode drives the same agent loop, so the project runs in about a minute after cloning.
+- **Runs with a real model for free.** Plug in a free Google Gemini key (or Claude / OpenAI). Without any key, an offline test policy drives the same agent loop, so tests and CI never depend on an external API.
+- **Never crashes on a patient.** If the model API is down, rate-limited or misconfigured, the patient gets a polite reply and the conversation is handed to staff.
 
 ## Tech stack
 
@@ -96,7 +97,7 @@ uvicorn app.main:app --reload
 
 **5. Open http://localhost:8000**
 
-→ On the left is a WhatsApp-style chat. On the right are three tabs: **Agent trace** (every tool call the AI makes), **CRM · 360° view** and **FHIR**. The header badge says `demo mode · offline`. Interactive API docs are at http://localhost:8000/docs.
+→ On the left is a WhatsApp-style chat. On the right are three tabs: **Agent trace** (every tool call the AI makes), **CRM · 360° view** and **FHIR**. The header badge shows the model in use (`live · gemini`), or `offline · no model key` if you haven't added one yet. Interactive API docs are at http://localhost:8000/docs.
 
 ## Guided tour: what to try and what happens
 
@@ -162,38 +163,26 @@ Send `Cancel my appointment`.
 
 Click **Reset demo** at any time to start over.
 
-> **About demo mode:** without an API key, a deterministic scripted policy plays the LLM's role using the exact same tool-use protocol. It understands English phrasings close to the suggestion chips. For free conversation in any language, use Claude (next section).
+> **Without a key:** an offline test policy plays the LLM's role using the exact same tool-use protocol. It understands English phrasings close to the suggestion chips. Add a key (next section) for free conversation in any language.
 
-## Using Claude or OpenAI instead of demo mode
+## Connecting a model (free option included)
 
-**1.** Create an API key at https://console.anthropic.com
+The app uses whichever key is in `.env` (`LLM_PROVIDER=auto`):
 
-**2.** Create your `.env` file:
+| Provider | Cost | `.env` |
+|---|---|---|
+| **Google Gemini** | **Free tier, no card.** Key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | `GEMINI_API_KEY=...` |
+| Anthropic Claude | Paid (tool use + prompt caching) | `ANTHROPIC_API_KEY=...` |
+| OpenAI | Paid | `OPENAI_API_KEY=...` |
+| Any OpenAI-compatible server | Varies (Ollama is free and local) | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` |
 
 ```bash
-cp .env.example .env
+cp .env.example .env     # then paste your key, e.g. GEMINI_API_KEY=AIza...
 ```
 
-**3.** Set these values in `.env`:
+Also set `EMBEDDING_PROVIDER=fastembed` for semantic retrieval. Restart the app, and the header badge shows `live · gemini`.
 
-```ini
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your_key_here
-ANTHROPIC_MODEL=claude-sonnet-5
-EMBEDDING_PROVIDER=fastembed
-```
-
-Or, for OpenAI:
-
-```ini
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-5.5
-```
-
-**4.** Restart the app. The header badge now shows `live · anthropic` (or `live · openai`), and the agent understands free-form messages in any language.
-
-> API credits are billed separately from a Claude.ai subscription.
+The free Gemini tier is rate-limited and sometimes overloaded, so calls are spaced automatically and the adapter **falls back to lighter models** (`GEMINI_FALLBACK_MODELS`) instead of failing. Free-tier prompts may be used by Google to improve its products: the data here is synthetic, but don't use the free tier with real patient data (use a paid, zero-retention plan for that).
 
 **Optional, for real payments in Stripe test mode:** set `STRIPE_SECRET_KEY=sk_test_...` and forward webhooks with the Stripe CLI:
 
@@ -284,7 +273,10 @@ Everything is optional. A missing key switches that component to its local fallb
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `LLM_PROVIDER` | `mock` | `mock` (demo policy), `anthropic` (Claude) or `openai` |
+| `LLM_PROVIDER` | `auto` | `auto` (first key found: Anthropic, OpenAI, Gemini; offline policy if none), `anthropic`, `openai`, `gemini` or `mock` |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | – / `gemini-3.8-flash` | Free tier at aistudio.google.com/apikey |
+| `GEMINI_FALLBACK_MODELS` | `["gemini-3.5-flash-lite","gemini-3.1-flash-lite"]` | Tried when the main model is overloaded or rate-limited |
+| `OPENAI_BASE_URL` | – | Any OpenAI-compatible server (Ollama, Groq, OpenRouter) |
 | `ANTHROPIC_API_KEY` | — | Claude API key |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Claude model |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-5.5` | OpenAI key and model |
@@ -331,7 +323,7 @@ Full list: [docs/configuration.md](docs/configuration.md)
 | `ruff check .` | Lint |
 | `python -m evals.run_evals` | Runs the 34 agent scenarios and writes `evals/results.md` |
 | `EMBEDDING_PROVIDER=fastembed python -m evals.run_evals` | Same scenarios with real embeddings (what CI runs) |
-| `LLM_PROVIDER=anthropic python -m evals.run_evals` | Scores Claude itself (`openai` for OpenAI) |
+| `python -m evals.run_evals` (with a key in `.env`) | Scores the real model; the report goes to `evals/results-<model>.md` |
 
 CI runs on every push: lint, tests on **SQLite and Postgres + pgvector**, evals with real embeddings (failing below 95%), and the Docker image build.
 
@@ -348,7 +340,7 @@ CI runs on every push: lint, tests on **SQLite and Postgres + pgvector**, evals 
 
 ## Troubleshooting
 
-**The demo doesn't understand my message.** Demo mode recognises English phrasings close to the suggestion chips. Use them, or switch to Claude.
+**The assistant doesn't understand my message.** Without a model key, the offline policy only recognises phrasings close to the suggestion chips. Add a free Gemini key (see above).
 
 **"Slot is not available".** Use an id from the most recent list. Past and taken slots are rejected.
 

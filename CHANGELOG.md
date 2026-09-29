@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Google Gemini as a model provider through its OpenAI-compatible API, including the free tier; `LLM_PROVIDER=auto` picks whichever key is configured.
+- `OPENAI_BASE_URL` for any OpenAI-compatible server (Ollama, Groq, OpenRouter).
+- Automatic model fallback with cooldown on 503/429, request spacing for free tiers, SDK timeouts and retries.
+- Gemini 3 thought signatures are round-tripped with tool calls (and stripped before calling Claude).
+
+### Fixed
+- A model outage (invalid key, quota, provider down) returned HTTP 500 in the chat. The patient now gets a polite reply and the conversation is handed to staff.
+- Real-model eval runs no longer overwrite the offline CI baseline report.
+
 ## [1.2.0] - 2026-09-23
 
 ### Added

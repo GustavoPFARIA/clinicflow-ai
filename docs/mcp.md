@@ -70,14 +70,17 @@ Run it from the repository root, with the virtual environment active.
 import anyio
 from mcp import Client, StdioServerParameters
 
+
 async def main():
     server = StdioServerParameters(
-        command="python", args=["-m", "app.mcp_server"],
+        command="python",
+        args=["-m", "app.mcp_server"],
         env={"CLINICFLOW_MCP_PHONE": "+5562991110001"},
     )
     async with Client(server) as client:
         result = await client.call_tool("search_knowledge_base", {"query": "Do you accept Unimed?"})
-        print(result.structured_content["results"][0]["citation"])   # clinic#Health insurance
+        print(result.structured_content["results"][0]["citation"])  # clinic#Health insurance
+
 
 anyio.run(main)
 ```

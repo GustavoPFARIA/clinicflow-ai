@@ -9,13 +9,15 @@ Every case runs against a freshly seeded database and is scored on:
 
 Usage:
     python -m evals.run_evals                     # scripted policy (deterministic, CI)
-    LLM_PROVIDER=anthropic python -m evals.run_evals   # real Claude model
+    python -m evals.run_evals                          # the model from .env (e.g. free Gemini)
+    LLM_PROVIDER=mock python -m evals.run_evals        # offline baseline (what CI runs)
     python -m evals.run_evals --min-pass-rate 0.95     # fail the build below threshold
 """
 
 import argparse
 import json
 import os
+import re
 import sys
 import tempfile
 from collections import defaultdict
@@ -29,7 +31,7 @@ from sqlalchemy import select  # noqa: E402
 
 from app import seed  # noqa: E402
 from app.agent.agent import Agent  # noqa: E402
-from app.agent.llm import get_llm  # noqa: E402
+from app.agent.llm import ScriptedLLM, get_llm  # noqa: E402
 from app.crm import find_patient_by_phone  # noqa: E402
 from app.db import SessionLocal, init_db  # noqa: E402
 from app.models import Appointment, Slot  # noqa: E402
@@ -146,11 +148,13 @@ def main() -> int:
     if args.only:
         cases = [c for c in cases if c["id"] == args.only]
     results = [run_case(c) for c in cases]
-    model = get_llm().name
-
-    md = report(results, model)
-    (HERE / "results.md").write_text(md, encoding="utf-8")
-    (HERE / "results.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    llm = get_llm()
+    md = report(results, llm.name)
+    # The offline policy's report is the CI baseline; real models get their own files.
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", getattr(llm, "model", llm.name)).strip("-")
+    suffix = "" if isinstance(llm, ScriptedLLM) else f"-{slug}"
+    (HERE / f"results{suffix}.md").write_text(md, encoding="utf-8")
+    (HERE / f"results{suffix}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
     print(md)
     for r in results:

@@ -22,6 +22,7 @@ jobs:
       - name: Agent evals with real embeddings (fail below 95%)
         env:
           EMBEDDING_PROVIDER: fastembed
+          LLM_PROVIDER: mock
         run: python -m evals.run_evals --min-pass-rate 0.95
       - name: Publish eval report
         if: always()

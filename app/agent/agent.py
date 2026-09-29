@@ -1,6 +1,7 @@
 """The agent loop: guardrails -> PII redaction -> LLM <-> tools -> output checks."""
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 
@@ -15,6 +16,13 @@ from app.agent.tools import ToolContext, run_tool, tool_schemas
 from app.config import get_settings
 from app.models import ConversationMessage, Patient
 from app.privacy import Redactor
+
+log = logging.getLogger("clinicflow")
+
+MODEL_UNAVAILABLE_REPLY = (
+    "Sorry, I'm having trouble answering right now. I've passed your message to our team, "
+    "and someone will get back to you shortly."
+)
 
 HISTORY_TURNS = 10
 
@@ -69,7 +77,15 @@ class Agent:
             run_tool(ctx, "escalate_to_human", {"reason": "Possible medical emergency"})
             result.reply, result.guardrail = guardrails.EMERGENCY_REPLY, "emergency"
         else:
-            self._loop(ctx, history, text, result)
+            try:
+                self._loop(ctx, history, text, result)
+            except Exception as exc:  # model API down, invalid key, quota exhausted...
+                # A patient must never see a crash: answer politely and hand off to a human.
+                log.exception("LLM unavailable; escalating to staff")
+                self.db.rollback()
+                self.db.add(ConversationMessage(patient_id=patient.id, role="user", content=text))
+                run_tool(ctx, "escalate_to_human", {"reason": f"AI assistant unavailable ({type(exc).__name__})"})
+                result.reply, result.guardrail = MODEL_UNAVAILABLE_REPLY, "llm_unavailable"
 
         self.db.add(ConversationMessage(patient_id=patient.id, role="assistant", content=result.reply))
         crm.log_event(
@@ -96,7 +112,10 @@ class Agent:
         for _ in range(self.settings.agent_max_steps):
             resp = self.llm.complete(system, messages, tool_schemas())
             for k, v in resp.usage.items():
-                result.usage[k] = result.usage.get(k, 0) + v
+                if k == "model":  # which model answered (fallbacks can change it mid-conversation)
+                    result.usage["model"] = v
+                else:
+                    result.usage[k] = result.usage.get(k, 0) + v
             messages.append({"role": "assistant", "content": resp.content})
 
             if not resp.tool_calls:

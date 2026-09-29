@@ -8,7 +8,7 @@
 | Full stack | Docker with Compose v2 |
 | Live providers (optional) | Anthropic or OpenAI API key, Stripe test key, WhatsApp Cloud API app |
 
-## 1. Run locally (demo mode)
+## 1. Run locally
 
 ```bash
 git clone https://github.com/GustavoPFARIA/clinicflow-ai.git
@@ -41,7 +41,7 @@ Use the **Reset demo** button (or `POST /api/demo/reset`) to restore this state 
 4. Try the guardrails: *I have chest pain*, *Should I take ibuprofen?*, *What's the capital of France?*
 5. Open the **Agent trace** tab after each message to see every tool call, its arguments and its result.
 
-> Demo mode uses a deterministic scripted policy instead of an LLM (see [Agent](agent.md#llm-providers)). It understands English phrasings close to the suggestion chips. Set `LLM_PROVIDER=anthropic` for free-form conversation in any language.
+> Without a model key, an offline test policy stands in for the LLM (see [Agent](agent.md#llm-providers)) and only understands phrasings close to the suggestion chips. Add a free `GEMINI_API_KEY` (aistudio.google.com/apikey) to `.env` for free-form conversation in any language.
 
 ## 2. Run the full stack with Docker
 

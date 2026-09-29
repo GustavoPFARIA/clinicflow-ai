@@ -44,4 +44,4 @@ def index():
 
 @app.get("/health", tags=["ops"])
 def health():
-    return {"status": "ok", "llm": settings.llm_provider, "demo_mode": settings.demo_mode}
+    return {"status": "ok", "llm": settings.resolved_provider(), "demo_mode": settings.demo_mode}

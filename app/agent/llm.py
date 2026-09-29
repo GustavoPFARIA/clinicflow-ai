@@ -9,12 +9,17 @@
 """
 
 import json
+import logging
 import re
+import threading
+import time
 from dataclasses import dataclass
 from typing import Protocol
 
 from app.config import get_settings
 from app.rag.embeddings import normalize, stem, tokenize
+
+log = logging.getLogger("clinicflow")
 
 
 @dataclass
@@ -43,7 +48,8 @@ class AnthropicLLM:
     def __init__(self, api_key: str, model: str):
         import anthropic
 
-        self.client = anthropic.Anthropic(api_key=api_key)
+        # The SDK retries 408/409/429/5xx and connection errors with exponential backoff.
+        self.client = anthropic.Anthropic(api_key=api_key, timeout=60, max_retries=3)
         self.model = model
         self.name = model
 
@@ -54,7 +60,7 @@ class AnthropicLLM:
         blocks = [{"type": "text", "text": system[0], "cache_control": {"type": "ephemeral"}}]
         blocks += [{"type": "text", "text": text} for text in system[1:]]
         resp = self.client.messages.create(
-            model=self.model, max_tokens=1024, system=blocks, messages=messages, tools=tools
+            model=self.model, max_tokens=1024, system=blocks, messages=_strip_provider_extra(messages), tools=tools
         )
         content = [b.model_dump(include={"type", "text", "id", "name", "input"}) for b in resp.content]
         return LLMResponse(
@@ -69,17 +75,37 @@ class AnthropicLLM:
 
 
 class OpenAILLM:
-    """OpenAI Chat Completions adapter. The agent keeps one internal message
+    """OpenAI Chat Completions adapter, and any OpenAI-compatible API through
+    `base_url` (Gemini, Groq, Ollama...). The agent keeps one internal message
     format (Anthropic blocks); this class translates it both ways, so tools,
-    guardrails, evals and traces are provider-agnostic. OpenAI caches long
-    prompt prefixes automatically, and cache hits are reported in the usage."""
+    guardrails, evals and traces are provider-agnostic.
 
-    def __init__(self, api_key: str, model: str):
+    Production concerns handled here: request spacing for rate-limited tiers,
+    fallback to other models when one is overloaded (503) or rate-limited (429),
+    and round-tripping provider metadata such as Gemini 3 thought signatures."""
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        timeout: float = 60,
+        max_retries: int = 3,
+        base_url: str | None = None,
+        min_interval_s: float = 0.0,
+        fallback_models: list[str] | None = None,
+        cooldown_s: float = 120.0,
+    ):
         import openai
 
-        self.client = openai.OpenAI(api_key=api_key)
+        self.client = openai.OpenAI(api_key=api_key, timeout=timeout, max_retries=max_retries, base_url=base_url)
         self.model = model
-        self.name = model
+        self.fallback_models = [m for m in fallback_models or [] if m != model]
+        self.name = model + (f" (fallback: {', '.join(self.fallback_models)})" if self.fallback_models else "")
+        self.min_interval_s = min_interval_s
+        self.cooldown_s = cooldown_s
+        self._lock = threading.Lock()
+        self._last_call = 0.0
+        self._cooldown_until: dict[str, float] = {}
 
     @staticmethod
     def to_openai(system: list[str], messages: list[dict], tools: list[dict]) -> tuple[list[dict], list[dict]]:
@@ -94,6 +120,7 @@ class OpenAILLM:
                         "id": b["id"],
                         "type": "function",
                         "function": {"name": b["name"], "arguments": json.dumps(b["input"])},
+                        **({"extra_content": b["provider_extra"]} if b.get("provider_extra") else {}),
                     }
                     for b in m["content"]
                     if b["type"] == "tool_use"
@@ -114,24 +141,78 @@ class OpenAILLM:
         ]
         return out, fns
 
+    def _throttle(self) -> None:
+        if self.min_interval_s <= 0:
+            return
+        with self._lock:
+            wait = self._last_call + self.min_interval_s - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self._last_call = time.monotonic()
+
+    def _create(self, messages: list[dict], tools: list[dict]):
+        import openai
+
+        now = time.monotonic()
+        candidates = [self.model, *self.fallback_models]
+        ready = [m for m in candidates if self._cooldown_until.get(m, 0) <= now] or candidates
+        for i, model in enumerate(ready):
+            self._throttle()
+            try:
+                return self.client.chat.completions.create(model=model, messages=messages, tools=tools), model
+            except (openai.RateLimitError, openai.InternalServerError, openai.APIConnectionError) as exc:
+                if i == len(ready) - 1:
+                    raise
+                self._cooldown_until[model] = time.monotonic() + self.cooldown_s
+                log.warning("model %s unavailable (%s); falling back to %s", model, type(exc).__name__, ready[i + 1])
+        raise RuntimeError("no model available")
+
     def complete(self, system: list[str], messages: list[dict], tools: list[dict]) -> LLMResponse:
         oa_messages, oa_tools = self.to_openai(system, messages, tools)
-        resp = self.client.chat.completions.create(model=self.model, messages=oa_messages, tools=oa_tools)
+        resp, model = self._create(oa_messages, oa_tools)
         msg = resp.choices[0].message
         content: list[dict] = [{"type": "text", "text": msg.content}] if msg.content else []
         content += [
-            {"type": "tool_use", "id": c.id, "name": c.function.name, "input": json.loads(c.function.arguments or "{}")}
+            {
+                "type": "tool_use",
+                "id": c.id,
+                "name": c.function.name,
+                "input": _parse_args(c.function.arguments),
+                **({"provider_extra": extra} if (extra := (c.model_extra or {}).get("extra_content")) else {}),
+            }
             for c in msg.tool_calls or []
+            if c.type == "function"
         ]
-        details = resp.usage.prompt_tokens_details
+        usage = resp.usage
+        details = usage.prompt_tokens_details if usage else None
         return LLMResponse(
             content=content,
             usage={
-                "input_tokens": resp.usage.prompt_tokens,
-                "output_tokens": resp.usage.completion_tokens,
+                "input_tokens": usage.prompt_tokens if usage else 0,
+                "output_tokens": usage.completion_tokens if usage else 0,
                 "cache_read_input_tokens": (details.cached_tokens or 0) if details else 0,
+                "model": model,
             },
         )
+
+
+def _parse_args(raw: str | None) -> dict:
+    """Malformed JSON arguments become {} so the tool reports an error instead of crashing."""
+    try:
+        value = json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _strip_provider_extra(messages: list[dict]) -> list[dict]:
+    """Drop another provider's round-trip metadata; the Messages API rejects unknown keys."""
+    return [
+        {**m, "content": [{k: v for k, v in b.items() if k != "provider_extra"} for b in m["content"]]}
+        if isinstance(m["content"], list)
+        else m
+        for m in messages
+    ]
 
 
 # --- deterministic scripted policy ------------------------------------------
@@ -439,14 +520,33 @@ def _tomorrow(system: str) -> str:
     return (today + timedelta(days=1)).isoformat()
 
 
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+
 def get_llm() -> LLM:
     s = get_settings()
-    if s.llm_provider == "anthropic":
+    provider = s.resolved_provider()
+    if provider == "anthropic":
         if not s.anthropic_api_key:
             raise RuntimeError("LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY")
         return AnthropicLLM(s.anthropic_api_key, s.anthropic_model)
-    if s.llm_provider == "openai":
+    if provider == "openai":
         if not s.openai_api_key:
             raise RuntimeError("LLM_PROVIDER=openai requires OPENAI_API_KEY")
-        return OpenAILLM(s.openai_api_key, s.openai_model)
-    return ScriptedLLM()
+        return OpenAILLM(
+            s.openai_api_key, s.openai_model, s.llm_timeout_s, s.llm_max_retries,
+            base_url=s.openai_base_url, min_interval_s=s.llm_min_interval_s or 0.0,
+        )  # fmt: skip
+    if provider == "gemini":
+        if not s.gemini_api_key:
+            raise RuntimeError("LLM_PROVIDER=gemini requires GEMINI_API_KEY")
+        # Free tier: rate-limited and sometimes overloaded, so space calls out and
+        # fall back to lighter models instead of failing the conversation.
+        interval = s.llm_min_interval_s if s.llm_min_interval_s is not None else 6.5
+        return OpenAILLM(
+            s.gemini_api_key, s.gemini_model, s.llm_timeout_s, s.llm_max_retries,
+            base_url=GEMINI_BASE_URL, min_interval_s=interval, fallback_models=s.gemini_fallback_models,
+        )  # fmt: skip
+    if provider == "mock":
+        return ScriptedLLM()
+    raise RuntimeError(f"Unknown LLM_PROVIDER '{provider}' (use auto, anthropic, openai, gemini or mock)")
