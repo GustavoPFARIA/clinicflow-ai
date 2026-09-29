@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from app import crm
 from app.agent import guardrails
+from app.agent.language import detect_language
 from app.agent.llm import LLM, get_llm
-from app.agent.prompts import CONTEXT_PROMPT, SYSTEM_PROMPT
+from app.agent.prompts import CONTEXT_PROMPT, LANGUAGE_HINT, SYSTEM_PROMPT
 from app.agent.tools import ToolContext, run_tool, tool_schemas
 from app.config import get_settings
 from app.models import ConversationMessage, Patient
@@ -103,7 +104,8 @@ class Agent:
         redactor = Redactor()
         system = [
             SYSTEM_PROMPT.format(clinic=self.settings.app_name),
-            CONTEXT_PROMPT.format(first_name=ctx.patient.first_name, today=ctx.now.strftime("%Y-%m-%d (%A)")),
+            CONTEXT_PROMPT.format(first_name=ctx.patient.first_name, today=ctx.now.strftime("%Y-%m-%d (%A)"))
+            + (LANGUAGE_HINT.format(language=language) if (language := detect_language(text)) else ""),
         ]
         messages = [{"role": m["role"], "content": redactor.redact(m["content"])} for m in history]
         messages.append({"role": "user", "content": redactor.redact(text)})

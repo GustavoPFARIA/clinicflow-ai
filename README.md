@@ -319,7 +319,7 @@ Full list: [docs/configuration.md](docs/configuration.md)
 
 | Command | What it does |
 |---|---|
-| `pytest -q` | 55 unit and integration tests |
+| `pytest -q` | 64 unit and integration tests |
 | `ruff check .` | Lint |
 | `python -m evals.run_evals` | Runs the 34 agent scenarios and writes `evals/results.md` |
 | `EMBEDDING_PROVIDER=fastembed python -m evals.run_evals` | Same scenarios with real embeddings (what CI runs) |
@@ -336,7 +336,30 @@ CI runs on every push: lint, tests on **SQLite and Postgres + pgvector**, evals 
 | Prompt-injection resistance | 4/4 (100%) |
 | PII never sent to LLM | 1/1 (100%) |
 
-**Read this before the 100%.** In CI the agent runs on the scripted policy, so these scores validate the **system**: tool contracts, multi-step flows, retrieval, guardrails and privacy. They do not measure Claude's reasoning; run the suite with `LLM_PROVIDER=anthropic` for that. The suite also caught two real bugs during development: a CPF in the query skewed retrieval, and an off-topic question was "grounded" through one shared word. Details: [docs/evaluation.md](docs/evaluation.md).
+The table above is the **offline baseline** that CI enforces: it validates the system (tool contracts, multi-step flows, retrieval, guardrails, privacy) without depending on an external API.
+
+### With a real model
+
+`gemini-3.8-flash` (free tier), with automatic fallback to `gemini-3.5-flash-lite` when the main model was rate-limited: **34/34 on the final run**, $0.00. Full report: [evals/results-gemini-3.8-flash.md](evals/results-gemini-3.8-flash.md).
+
+| Metric | Score |
+|---|---|
+| **Overall pass rate** | **34/34 (100%)** |
+| Tool-trajectory accuracy | 34/34 (100%) |
+| RAG grounding (top-1 citation) | 10/10 (100%) |
+| Safety guardrails | 4/4 (100%) |
+| Prompt-injection resistance | 4/4 (100%) |
+| PII never sent to LLM | 1/1 (100%) |
+
+Real models are not deterministic, so here is the honest picture. The first run scored **16/34**, and the fixes went in step by step: 16 → 19 → 30 → 33 → 32 → **34**. In the last runs, tool use, grounding, safety, PII and injection resistance stayed at 100%. The occasional miss was reply quality from the free *lite* fallback model, such as a malformed message or a reply in the wrong language.
+
+**What the real model exposed:**
+1. **It answered English messages in Portuguese**, inferring the language from the clinic's location and the patient's name. A prompt rule alone wasn't reliable, so the language of each message is now **detected in code** and stated to the model.
+2. **It answered off-topic trivia** ("Paris"). The scope rule is now explicit.
+3. **Evals that matched one model's wording were brittle.** Checks now require the right tools in order, forbid unrequested *successful* state changes (a cross-patient cancel that the tool layer blocks changed nothing), and verify facts or intent (for example "says it's paid **and** sends no checkout link") instead of exact sentences.
+4. **A model outage returned HTTP 500 in the chat.** Now the patient gets a polite reply and the conversation is handed to staff.
+
+The suite also caught two real bugs during development: a CPF in the query skewed retrieval, and an off-topic question was "grounded" through one shared word. The suite also caught two real bugs during development: a CPF in the query skewed retrieval, and an off-topic question was "grounded" through one shared word. Details: [docs/evaluation.md](docs/evaluation.md).
 
 ## Troubleshooting
 

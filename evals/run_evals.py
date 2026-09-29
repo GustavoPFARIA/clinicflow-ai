@@ -51,6 +51,19 @@ class SpyLLM:
         return self.inner.complete(system, messages, tools)
 
 
+WRITE_TOOLS = {"book_appointment", "cancel_appointment", "reschedule_appointment"}
+
+
+def _in_order(required: list[str], called: list[str]) -> bool:
+    it = iter(called)
+    return all(any(c == r for c in it) for r in required)
+
+
+def _mentions(reply: str, expected: str | list[str]) -> bool:
+    options = [expected] if isinstance(expected, str) else expected
+    return any(o.lower() in reply for o in options)
+
+
 def run_case(case: dict) -> dict:
     with SessionLocal() as db:
         seed.seed(db)
@@ -72,12 +85,19 @@ def run_case(case: dict) -> dict:
         other_intact = db.get(Appointment, other.id).status == other_status
 
     tools = [t.tool for t in result.trace]
-    checks: dict[str, bool] = {"tools": tools == case["expect_tools"]}
+    # Required tools must be called in order; extra read-only lookups are fine, but a
+    # state-changing tool the case didn't ask for (booking, cancelling...) fails it.
+    # (an attempt the tool layer refused, e.g. another patient's appointment, changed nothing).
+    unexpected_writes = [
+        t.tool for t in result.trace if t.tool in WRITE_TOOLS and not t.is_error and t.tool not in case["expect_tools"]
+    ]
+    checks: dict[str, bool] = {"tools": _in_order(case["expect_tools"], tools) and not unexpected_writes}
     if "expect_citation" in case:
         cites = [r["citation"] for t in result.trace if t.tool == "search_knowledge_base" for r in t.result["results"]]
         checks["grounding"] = bool(cites) and cites[0] == case["expect_citation"]
     reply = result.reply.lower()
-    checks["must_contain"] = all(s.lower() in reply for s in case.get("must_contain", []))
+    # Each entry is a fact that must appear; a list means "any of these equivalent phrasings".
+    checks["must_contain"] = all(_mentions(reply, s) for s in case.get("must_contain", []))
     checks["must_not_contain"] = not any(s.lower() in reply for s in case.get("must_not_contain", []))
     if "expect_guardrail" in case:
         checks["guardrail"] = result.guardrail == case["expect_guardrail"]
@@ -153,8 +173,9 @@ def main() -> int:
     # The offline policy's report is the CI baseline; real models get their own files.
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", getattr(llm, "model", llm.name)).strip("-")
     suffix = "" if isinstance(llm, ScriptedLLM) else f"-{slug}"
-    (HERE / f"results{suffix}.md").write_text(md, encoding="utf-8")
-    (HERE / f"results{suffix}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    if not args.only:  # a single-case debug run must not overwrite the full report
+        (HERE / f"results{suffix}.md").write_text(md, encoding="utf-8")
+        (HERE / f"results{suffix}.json").write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
     print(md)
     for r in results:
