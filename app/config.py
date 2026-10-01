@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     LLM, "auto" uses whichever key is configured (Gemini has a free tier), and the
     offline scripted policy runs only when there is none (tests and CI)."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # env_ignore_empty: a blank line like `PRICE_INPUT_PER_MTOK=` (as in .env.example) means "use the default".
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
     app_name: str = "ClinicFlow AI"
     database_url: str = "sqlite:///./clinicflow.db"
