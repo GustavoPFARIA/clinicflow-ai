@@ -8,7 +8,7 @@
 ![Stripe](https://img.shields.io/badge/payments-Stripe-635bff)
 ![n8n](https://img.shields.io/badge/automation-n8n-ea4b71)
 ![MCP](https://img.shields.io/badge/MCP-server-000000)
-![Evals](https://img.shields.io/badge/agent%20evals-35%2F35-brightgreen)
+![Evals](https://img.shields.io/badge/agent%20evals-35%2F35%20offline%20%C2%B7%2034%2F35%20Gemini-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **ClinicFlow AI is a WhatsApp AI agent for healthcare clinics.** Patients write in natural language. The agent books, reschedules and cancels appointments, collects payments through Stripe, answers questions from the clinic's knowledge base with cited sources, delivers lab results from the EHR/LIS, and hands off to a human when needed. Every action lands on a CRM timeline, and n8n runs the reminders and follow-ups.
